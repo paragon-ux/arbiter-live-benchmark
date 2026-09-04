@@ -1,27 +1,27 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "rationale": {
-    "ubuntu": "Linux ext4/xfs with kernel page caching provides near-instantaneous git process spawns, with tolerance calibrated for multi-tenant CI virtualization and live Docker daemon startup probes.",
-    "macos": "APFS provides copy-on-write clonefile acceleration but exhibits higher process creation latency than Linux.",
-    "windows": "NTFS filesystem filter drivers, mandatory handle locking semantics, and real-time antivirus (e.g. Windows Defender) file-system interception introduce significant variable jitter on rapid consecutive git.exe process spawning and worktree cleanup, requiring a wider 100% duration tolerance."
+    "ubuntu": "Linux ext4/xfs with kernel page caching provides near-instantaneous git process spawns. Tolerances are locked at 25% following baseline SLA calibration for real container startup probes.",
+    "macos": "APFS copy-on-write clonefile acceleration balanced against higher process spawn latency on Darwin kernels, calibrated to a tight 60% threshold with 5.0ms dynamic jitter floor.",
+    "windows": "NTFS filesystem filter drivers, mandatory handle locking semantics, and real-time antivirus (Windows Defender) file-system interception introduce variable IO latency on rapid consecutive git.exe process spawns, calibrated to 100% threshold."
   },
   "tolerances": {
     "ubuntu": {
       "platform_pattern": "linux",
-      "latency_percent": 60,
+      "latency_percent": 25,
       "tokens_percent": 5,
       "max_cv": 0.25
     },
     "macos": {
       "platform_pattern": "darwin",
-      "latency_percent": 100,
+      "latency_percent": 60,
       "tokens_percent": 5,
       "max_cv": 0.45
     },
     "windows": {
       "platform_pattern": "win32",
-      "latency_percent": 120,
+      "latency_percent": 100,
       "tokens_percent": 5,
       "max_cv": 0.6
     }

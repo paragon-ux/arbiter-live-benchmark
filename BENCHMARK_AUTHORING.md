@@ -4,7 +4,7 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 
 ---
 
-## 1. Master Scenario Taxonomy (001–018)
+## 1. Master Scenario Taxonomy (001–022)
 
 | Scenario ID | Title | Tier | Category | Focus / Failure Mode |
 | :--- | :--- | :--- | :--- | :--- |
@@ -26,6 +26,10 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 | **`016-naive-mutex-contention`** | Naive Mutex Contention & Starvation | Tier 3 (Naive Mutex)| Comparative Baseline | Negative baseline measuring lock contention, starvation, and deadlock. |
 | **`017-parallel-50-workers`** | Massive Concurrency Scale (50 Workers) | Tier 1 / 1.5 / 2 | Concurrency Limits | 50 concurrent agents stressing WAL concurrency and OS file handle limits. |
 | **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-Package DAG | Tier 1 / 1.5 / 2 | Monorepo DAG | Diamond dependency resolution across shared packages in a workspace. |
+| **`019-n-way-merge-conflicts`** | N-Way Concurrent Merge Conflict Quarantine | Tier 1 / 1.5 / 2 | Conflict Isolation | 5 concurrent workers (2 clean, 3 colliding); quarantines colliders and keeps main intact. |
+| **`020-concurrent-main-drift`** | Concurrent Upstream Main Drift Rebase | Tier 1 / 1.5 / 2 | Upstream Sync | Injected upstream commits during branch work; 3-way synchronization without data loss. |
+| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary Resilience | Tier 1.5 (Subprocess)| Protocol Interface | Stdio JSON-RPC 2.0 tool calls, schema enforcement, and protocol error isolation. |
+| **`022-watchdog-heartbeat-stale-reclaim`**| Watchdog Stale Heartbeat Lease Reclaim | Tier 1 / 1.5 / 2 | Process Resilience | Recovers leases when worker PID is alive but heartbeat timed out (frozen/partitioned). |
 
 ---
 
@@ -84,3 +88,27 @@ The benchmark executes across four defined tiers:
   - `DockerIsolatedAdapter`: Evaluates containerized isolation overhead.
   - `NaiveMutexAdapter`: Evaluates negative baseline with file-level locks (file stomping, deadlocks).
   - `ProcessPoolAdapter`: Evaluates worker pool without worktree isolation.
+
+---
+
+## 5. Hypothesis Correlation Matrix (H1–H16)
+
+| Hypothesis | Claim Tested | Validating Scenarios | Primary Invariant |
+| :--- | :--- | :--- | :--- |
+| **H1** | 1:1:1 Invariant (1 worktree per agent per task) | `004`, `009`, `017`, `018`, `019` | Zero workspace stomping, dedicated branch |
+| **H2** | Waymark Continuity (>75% token reduction) | `001`, `002`, `013` | In-flight state restore in <250 tokens |
+| **H3** | Sub-5ms Orchestration Overhead | `005`, `009`, `011`, `017` | Scheduler latency <5.0ms even at 50 workers |
+| **H4** | Fail-Closed Conflict Quarantine | `006`, `012`, `019` | Git merge abort, untouched main branch |
+| **H5** | Zero-Daemon Dead Worker Lease Reclamation | `007` | `process.kill(pid, 0)` dead PID detection |
+| **H6** | Zero-Daemon Stale Heartbeat Recovery | `022` | Heartbeat timeout recovery with alive PID |
+| **H7** | Semantic Correctness & Type Integrity | `008` | Zero TypeScript compiler or runtime errors |
+| **H8** | High-Concurrency WAL Write Serialization | `009`, `017` | Zero SQLite locked errors, sequential commits |
+| **H9** | Kahn DAG Sort & Cycle Rejection | `005`, `010` | O(V+E) task resolution; immediate cycle error |
+| **H10** | Atomic Task Lease Acquisition & EAGAIN | `011` | Exactly one winner per task lease race |
+| **H11** | Crash Safety & Signal-Interrupted Rollback | `012` | Clean repository state on SIGTERM |
+| **H12** | ENOSPC / Storage Exhaustion Recovery | `014` | Graceful rollback when filesystem is full |
+| **H13** | Worktree vs Containerization Efficiency | `015` | Worktrees >50x faster than container start |
+| **H14** | Worktree Isolation vs Naive File Mutexes | `003`, `016` | Mutex causes starvation/deadlock; worktrees 0 |
+| **H15** | Monorepo Diamond Dependency DAG Resolution | `018` | Cross-package topological ordering |
+| **H16** | Upstream Main Drift & 3-Way Synchronization | `020` | Concurrent rebase preserving upstream work |
+

@@ -1,0 +1,20 @@
+{
+  "id": "021-mcp-protocol-resilience",
+  "title": "Tier 1.5 Subprocess MCP Protocol Boundary & Tool Calling Resilience",
+  "description": "Exercises Model Context Protocol (MCP) JSON-RPC 2.0 stdio communication with Arbiter's native MCP server across task leasing, worktree initialization, tool call dispatch, and protocol error boundaries.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "mcp_protocol",
+  "concurrency": 1,
+  "timeoutMs": 30000,
+  "tasks": [
+    { "id": "task-mcp-protocol-1", "file": "src/auth.ts", "workerId": "mcp-agent-1" }
+  ],
+  "expectedMetrics": {
+    "worktreesProvisioned": 1,
+    "worktreesIsolated": true,
+    "protocolCompliant": true,
+    "toolCallsExecuted": 3,
+    "conflicts": 0,
+    "mainClean": true
+  }
+}

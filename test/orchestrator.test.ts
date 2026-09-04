@@ -9,10 +9,10 @@ const __dirname = path.dirname(__filename);
 const scenariosDir = path.resolve(__dirname, '../../scenarios');
 
 describe('BenchmarkOrchestrator Suite', () => {
-  it('loads all 20 scenario files from scenarios directory', () => {
+  it('loads all 22 scenario files from scenarios directory', () => {
     const orchestrator = new BenchmarkOrchestrator();
     const scenarios = orchestrator.loadScenarios(scenariosDir);
-    assert.equal(scenarios.length, 20);
+    assert.equal(scenarios.length, 22);
     const ids = scenarios.map(s => s.id);
     assert.ok(ids.includes('001-single-agent-cold'));
     assert.ok(ids.includes('004-parallel-arbiter'));
@@ -22,6 +22,8 @@ describe('BenchmarkOrchestrator Suite', () => {
     assert.ok(ids.includes('018-cross-repo-workspace-dag'));
     assert.ok(ids.includes('019-n-way-merge-conflicts'));
     assert.ok(ids.includes('020-concurrent-main-drift'));
+    assert.ok(ids.includes('021-mcp-protocol-resilience'));
+    assert.ok(ids.includes('022-watchdog-heartbeat-stale-reclaim'));
   });
 
   it('filters scenarios by scenarioId when specified', () => {
@@ -36,8 +38,8 @@ describe('BenchmarkOrchestrator Suite', () => {
     const scenarios = orchestrator.loadScenarios(scenariosDir);
     const summary = await orchestrator.runSuite(scenarios, 'deterministic');
 
-    assert.equal(summary.totalScenarios, 20);
-    assert.equal(summary.passedScenarios, 20);
+    assert.equal(summary.totalScenarios, 22);
+    assert.equal(summary.passedScenarios, 22);
     assert.equal(summary.failedScenarios, 0);
     assert.ok(summary.totalDurationMs >= 0);
     assert.ok(summary.heapUsedMb > 0);

@@ -163,7 +163,9 @@ export function formatComparisonReport(result) {
 // CLI Execution
 if (process.argv[1] && process.argv[1].endsWith('compare-baseline.mjs')) {
   const currentPath = resolve(process.argv[2] || 'results/latest.json');
-  const defaultBaseline = existsSync(resolve('BASELINE_v1.1.0.json')) ? 'BASELINE_v1.1.0.json' : 'BASELINE_v1.0.0.json';
+  const defaultBaseline = existsSync(resolve('BASELINE_v1.2.0.json'))
+    ? 'BASELINE_v1.2.0.json'
+    : (existsSync(resolve('BASELINE_v1.1.0.json')) ? 'BASELINE_v1.1.0.json' : 'BASELINE_v1.0.0.json');
   const baselinePath = resolve(process.argv[3] || defaultBaseline);
   const tolerancesPath = resolve(process.argv[4] || 'REGRESSION_TOLERANCES.json');
 

@@ -35,7 +35,7 @@ async function main(): Promise<void> {
     } else if (arg === '--verbose' || arg === '-v') {
       verbose = true;
     } else if (arg === '--compare') {
-      compareBaseline = (args[i + 1] && !args[i + 1].startsWith('-')) ? args[++i] : path.join(rootDir, 'BASELINE_v1.0.0.json');
+      compareBaseline = (args[i + 1] && !args[i + 1].startsWith('-')) ? args[++i] : path.join(rootDir, 'BASELINE_v1.2.0.json');
     } else if (arg === '--json') {
       emitJson = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -49,7 +49,7 @@ Options:
                      'naive_mutex', 'process_pool', or 'docker'
   --trials <N>       Number of iterations to run for statistical aggregation (default: 1)
   --verbose, -v      Output timestamped execution trace logs
-  --compare [path]   Compare execution results against baseline JSON (default: BASELINE_v1.0.0.json)
+  --compare [path]   Compare execution results against baseline JSON (default: BASELINE_v1.2.0.json)
   --json             Output results in raw JSON format
   --help, -h         Show help text
 `);
@@ -67,11 +67,32 @@ Options:
   }
 
   const summary = await orchestrator.runSuite(scenarios, tier, trials, { verbose });
+  summary.$schema = 'https://json-schema.org/draft/2020-12/schema';
 
   // Write machine readable results
   const resultsDir = path.join(rootDir, 'results');
   fs.mkdirSync(resultsDir, { recursive: true });
   fs.writeFileSync(path.join(resultsDir, 'latest.json'), JSON.stringify(summary, null, 2) + '\n');
+
+  // Append to historical time-series tracking log
+  const historicalEntry = {
+    timestamp: summary.timestamp,
+    commit: process.env.GITHUB_SHA || 'local',
+    platform: summary.platform,
+    nodeVersion: summary.nodeVersion,
+    tier: summary.tier,
+    totalScenarios: summary.totalScenarios,
+    passedScenarios: summary.passedScenarios,
+    failedScenarios: summary.failedScenarios,
+    totalDurationMs: summary.totalDurationMs,
+    scenarios: summary.results.map(r => ({
+      id: r.scenarioId,
+      durationMs: r.metrics.durationMs,
+      tokens: r.metrics.tokensTotal,
+      passed: r.passed
+    }))
+  };
+  fs.appendFileSync(path.join(resultsDir, 'historical.jsonl'), JSON.stringify(historicalEntry) + '\n');
 
   if (emitJson) {
     console.log(JSON.stringify(summary, null, 2));

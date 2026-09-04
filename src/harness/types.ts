@@ -129,6 +129,23 @@ export interface UpstreamMainDriftDetails {
   mergeClean: boolean;
 }
 
+export interface McpProtocolDetails {
+  mcpProtocol: string;
+  mcpServerPid?: number;
+  toolCallsExecuted: number;
+  protocolCompliant: boolean;
+  rpcLatencyMs: number;
+}
+
+export interface StaleHeartbeatDetails {
+  heartbeatAgeMs: number;
+  heartbeatTimeoutMs: number;
+  workerPidAlive: boolean;
+  leaseExpired: boolean;
+  taskResetToReady: boolean;
+  waymarkLockRecovered: boolean;
+}
+
 export type TypedScenarioDetails =
   | ColdExplorationDetails
   | WaymarkContinuityDetails
@@ -147,11 +164,38 @@ export type TypedScenarioDetails =
   | NaiveMutexDetails
   | CrossRepoDagDetails
   | NWayConflictDetails
-  | UpstreamMainDriftDetails;
+  | UpstreamMainDriftDetails
+  | McpProtocolDetails
+  | StaleHeartbeatDetails;
+
+export interface ScenarioDetailsMap {
+  '001-single-agent-cold': ColdExplorationDetails;
+  '002-single-agent-waymark': WaymarkContinuityDetails;
+  '003-parallel-no-isolation': ChaosNoIsolationDetails;
+  '004-parallel-arbiter': WorktreeSwarmDetails;
+  '005-dag-dependencies': DagSchedulingDetails;
+  '006-conflict-quarantine': ConflictQuarantineDetails;
+  '007-watchdog-dead-worker': WatchdogDetails;
+  '008-agent-semantic-correctness': SemanticCorrectnessDetails;
+  '009-parallel-10-workers': WorktreeSwarmDetails;
+  '010-cyclic-dag-rejection': CyclicDagDetails;
+  '011-concurrent-lease-collision': LeaseCollisionDetails;
+  '012-signal-interrupted-merge': SignalInterruptedDetails;
+  '013-waymark-multi-compaction': MultiCompactionDetails;
+  '014-disk-full-recovery': DiskFullDetails;
+  '015-docker-isolated-overhead': DockerOverheadDetails;
+  '016-naive-mutex-contention': NaiveMutexDetails;
+  '017-parallel-50-workers': WorktreeSwarmDetails;
+  '018-cross-repo-workspace-dag': CrossRepoDagDetails;
+  '019-n-way-merge-conflicts': NWayConflictDetails;
+  '020-concurrent-main-drift': UpstreamMainDriftDetails;
+  '021-mcp-protocol-resilience': McpProtocolDetails;
+  '022-watchdog-heartbeat-stale-reclaim': StaleHeartbeatDetails;
+}
 
 export type ScenarioDetails = Record<string, any>;
 
-export interface ScenarioMetrics {
+export interface ScenarioMetrics<T = ScenarioDetails> {
   durationMs: number;
   tokensTotal: number;
   waymarkResumeTokens?: number;
@@ -167,7 +211,7 @@ export interface ScenarioMetrics {
   mutexWaitMs?: number;
   lockContentionCount?: number;
   overheadRatio?: number;
-  details: ScenarioDetails;
+  details: T;
 }
 
 export interface StatisticalMetrics {
@@ -181,19 +225,22 @@ export interface StatisticalMetrics {
   trialDurations: number[];
 }
 
-export interface ScenarioResult {
+export interface ScenarioResult<T = ScenarioDetails> {
   scenarioId: string;
   title: string;
   tier: ExecutionTier;
   passed: boolean;
-  metrics: ScenarioMetrics;
+  metrics: ScenarioMetrics<T>;
   rawDurationMs?: number;
   trialHistory?: { trialIndex: number; durationMs: number; passed: boolean }[];
   stats?: StatisticalMetrics;
   error?: string;
 }
 
+export type TypedScenarioResult<K extends keyof ScenarioDetailsMap = keyof ScenarioDetailsMap> = ScenarioResult<ScenarioDetailsMap[K]> & { scenarioId: K };
+
 export interface BenchmarkSummary {
+  $schema?: string;
   timestamp: string;
   nodeVersion: string;
   platform: string;

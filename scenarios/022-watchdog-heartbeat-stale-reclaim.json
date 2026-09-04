@@ -1,0 +1,20 @@
+{
+  "id": "022-watchdog-heartbeat-stale-reclaim",
+  "title": "Watchdog Stale Heartbeat Detection & Fault-Tolerant Task Recovery",
+  "description": "Validates Arbiter's LeaseWatchdog detection of stale workers whose heartbeats have expired due to network partition or process suspension while PID remains alive, resetting task to READY and releasing Waymark locks.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "stale_heartbeat",
+  "concurrency": 1,
+  "timeoutMs": 15000,
+  "tasks": [
+    { "id": "task-stale-heartbeat-1", "file": "src/session.ts", "workerId": "stale-worker-1" }
+  ],
+  "expectedMetrics": {
+    "workerPidAlive": true,
+    "leaseExpired": true,
+    "taskResetToReady": true,
+    "waymarkLockRecovered": true,
+    "conflicts": 0,
+    "mainClean": true
+  }
+}

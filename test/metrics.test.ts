@@ -46,4 +46,33 @@ describe('MetricsCollector Suite', () => {
     assert.ok(stats.p95DurationMs >= stats.medianDurationMs);
     assert.ok(stats.cvDuration > 0);
   });
+
+  it('enforces discriminated type-safety via TypedScenarioResult and ScenarioDetailsMap', () => {
+    // Compile-time & runtime assertion that TypedScenarioResult maps correctly
+    const mockNWayResult: import('../src/harness/types.js').TypedScenarioResult<'019-n-way-merge-conflicts'> = {
+      scenarioId: '019-n-way-merge-conflicts',
+      title: 'N-Way Merge Conflicts',
+      tier: 'deterministic',
+      passed: true,
+      metrics: {
+        durationMs: 120.5,
+        tokensTotal: 3600,
+        conflictsDetected: 3,
+        conflictsResolved: 3,
+        mainBranchValid: true,
+        accuracyPercent: 98,
+        details: {
+          contendingWorkers: 5,
+          sharedFilesModified: ['src/auth.ts'],
+          conflictsQuarantined: 3,
+          mainBranchIntact: true
+        }
+      }
+    };
+
+    assert.equal(mockNWayResult.scenarioId, '019-n-way-merge-conflicts');
+    assert.equal(mockNWayResult.metrics.details.conflictsQuarantined, 3);
+    assert.equal(mockNWayResult.metrics.details.mainBranchIntact, true);
+  });
 });
+

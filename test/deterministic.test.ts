@@ -326,6 +326,37 @@ describe('DeterministicAdapter Suite', () => {
     assert.equal(res.metrics.details.mergeClean, true);
   });
 
+  it('simulates 021-mcp-protocol-resilience exercising JSON-RPC tool calls', async () => {
+    const res = await adapter.execute({
+      id: '021-mcp-protocol-resilience',
+      title: 'MCP Protocol Resilience',
+      description: 'Test stdio JSON-RPC tool calling',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'mcp_protocol'
+    });
+
+    assert.ok(res.passed, 'Scenario 021 must pass');
+    assert.equal(res.metrics.mainBranchValid, true);
+    assert.equal(res.metrics.details.protocolCompliant, true);
+    assert.equal(res.metrics.details.toolCallsExecuted, 3);
+  });
+
+  it('simulates 022-watchdog-heartbeat-stale-reclaim recovering expired lease with alive PID', async () => {
+    const res = await adapter.execute({
+      id: '022-watchdog-heartbeat-stale-reclaim',
+      title: 'Watchdog Stale Heartbeat Recovery',
+      description: 'Test heartbeat expiration with alive PID',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'stale_heartbeat'
+    });
+
+    assert.ok(res.passed, 'Scenario 022 must pass');
+    assert.equal(res.metrics.details.workerPidAlive, true, 'Worker PID must still be alive');
+    assert.equal(res.metrics.details.leaseExpired, true, 'Lease must be expired by watchdog');
+    assert.equal(res.metrics.details.taskResetToReady, true, 'Task must be returned to READY');
+    assert.equal(res.metrics.mainBranchValid, true);
+  });
+
   it('verifies multi-run determinism produces identical token and behavioral metrics', async () => {
     const runA = await adapter.execute({
       id: '001-single-agent-cold',
@@ -348,4 +379,5 @@ describe('DeterministicAdapter Suite', () => {
     assert.equal(runA.metrics.details.compactionRecoveryType, runB.metrics.details.compactionRecoveryType, 'Recovery type must match');
   });
 });
+
 

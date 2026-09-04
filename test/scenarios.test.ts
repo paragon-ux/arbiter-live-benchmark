@@ -3,34 +3,28 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateScenario } from '../src/harness/validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const scenariosDir = path.resolve(__dirname, '../../scenarios');
+const rootDir = path.resolve(__dirname, '../..');
+const scenariosDir = path.resolve(rootDir, 'scenarios');
 
 describe('Scenario Schema Validation Suite', () => {
-  it('verifies each of the 20 scenario JSON files has required schema properties', () => {
-    const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json'));
-    assert.equal(files.length, 20, `Expected 20 scenarios, found ${files.length}`);
+  it('verifies each of the 22 scenario JSON files strictly satisfies the schema and target constraints', () => {
+    const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json')).sort();
+    assert.equal(files.length, 22, `Expected 22 scenarios, found ${files.length}`);
 
     for (const f of files) {
       const content = fs.readFileSync(path.join(scenariosDir, f), 'utf8').replace(/^\uFEFF/, '');
       const json = JSON.parse(content);
 
-      const expectedId = f.replace(/\.json$/, '');
-      assert.equal(json.id, expectedId, `${f} id does not match filename`);
-      assert.ok(typeof json.title === 'string' && json.title.length > 0, `${f} missing title`);
-      assert.ok(typeof json.description === 'string' && json.description.length > 0, `${f} missing description`);
-      assert.ok(typeof json.targetRepo === 'string' && json.targetRepo.length > 0, `${f} missing targetRepo`);
-      assert.ok(typeof json.mode === 'string' && json.mode.length > 0, `${f} missing mode`);
-      assert.ok(typeof json.expectedMetrics === 'object' && json.expectedMetrics !== null, `${f} missing expectedMetrics`);
-
-      if (json.tasks) {
-        assert.ok(Array.isArray(json.tasks), `${f} tasks must be an array`);
-        for (const t of json.tasks) {
-          assert.ok(t.id, `${f} task missing id`);
-        }
-      }
+      const result = validateScenario(json, rootDir, f);
+      assert.ok(
+        result.valid,
+        `Scenario ${f} failed validation: ${result.issues.map(i => `${i.field}: ${i.message}`).join(', ')}`
+      );
     }
   });
 });
+
