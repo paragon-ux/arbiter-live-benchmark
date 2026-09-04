@@ -53,15 +53,11 @@ export class NaiveMutexAdapter {
         try { fs.unlinkSync(lockFile); } catch {}
       }));
 
-      if (concurrency > 1 && contentionCount === 0) {
-        contentionCount = concurrency * 2;
-      }
-
       const isConflictScenario = scenario.id.includes('conflict') || scenario.id.includes('chaos') || scenario.id.includes('mutex') || scenario.id.includes('collision');
-      const conflictsDetected = isConflictScenario ? Math.max(1, Math.floor(concurrency / 2)) : 0;
+      const conflictsDetected = contentionCount;
       const conflictsResolved = 0; // Naive mutex lacks fail-closed rollback
       const mainBranchValid = !isConflictScenario;
-      const accuracy = isConflictScenario ? 45 : 85;
+      const accuracy = contentionCount > 0 ? Math.max(30, Math.min(85, Math.round(100 - (contentionCount * 7)))) : 85;
 
       const durationMs = performance.now() - startTime;
 

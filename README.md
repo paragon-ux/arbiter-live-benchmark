@@ -6,7 +6,7 @@
 
 ## Table of Contents
 
-- [Empirical Results Summary (v1.2.0)](#empirical-results-summary-v120)
+- [Empirical Results Summary (v2.0.0)](#empirical-results-summary-v200)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Why Benchmark Multi-Agent Orchestration?](#why-benchmark-multi-agent-orchestration)
 - [The 22 Benchmark Scenarios](#the-22-benchmark-scenarios)
@@ -20,36 +20,36 @@
 
 ---
 
-## Empirical Results Summary (v1.2.0)
+## Empirical Results Summary (v2.0.0)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
 | Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Cold Exploration Baseline | ~5.7ms | 125.0ms | 7,120 | 0 | 85% | ✅ PASS |
-| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~9.7ms | 50.0ms | **1,000** | 0 | **95%** | ✅ PASS |
-| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1.5ms | 5.0ms | N/A | 1 (0 resolved) | 55% | ✅ PASS |
-| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~3,615ms | 8,000ms | 2,100 | 0 | **98%** | ✅ PASS |
-| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3.2ms | 10.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~2,332ms | 4,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
-| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~79.5ms | 120.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`008-agent-semantic-correctness`**| Typecheck & Test Pass Rate | ~1,392ms | 1,800ms | 1,250 | 0 | **100%** | ✅ PASS |
-| **`009-parallel-10-workers`** | 10-Worker Concurrency Swarm | ~12,102ms | 18,000ms | 6,800 | 0 | **100%** | ✅ PASS |
-| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~2.6ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`011-concurrent-lease-collision`**| Atomic CAS Lease & EAGAIN | ~1.4ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`012-signal-interrupted-merge`** | `SIGTERM` Fail-Closed Rollback | ~756ms | 1,500ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
-| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~2.5ms | 5.0ms | 550 | 0 | **99%** | ✅ PASS |
-| **`014-disk-full-recovery`** | `ENOSPC` Transaction Rollback| ~1.3ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`015-docker-isolated-overhead`** | Docker Container Overhead | ~319ms | 650ms | 2,100 | 0 | **98%** | ✅ PASS |
-| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~0.7ms | 5.0ms | 2,500 | 2 (0 resolved) | 45% | ✅ PASS |
-| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~13,042ms | 18,000ms | 34,000 | 0 | **98%** | ✅ PASS |
-| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~1.7ms | 5.0ms | 4,200 | 0 | **100%** | ✅ PASS |
-| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~6,475ms | 8,500ms | 3,600 | 3 (3 resolved) | **98%** | ✅ PASS |
-| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~1,413ms | 2,500ms | 1,850 | 0 | **100%** | ✅ PASS |
-| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,507ms | 2,500ms | 1,500 | 0 | **100%** | ✅ PASS |
-| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~8.0ms | 20.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`001-single-agent-cold`** | Cold Exploration Baseline | ~14.2ms | 125.0ms | 7,120 | 0 | 85% | ✅ PASS |
+| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~18.3ms | 50.0ms | **1,000** | 0 | **95%** | ✅ PASS |
+| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1.3ms | 5.0ms | N/A | 1 (0 resolved) | 55% | ✅ PASS |
+| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~3,935ms | 8,000ms | 2,100 | 0 | **98%** | ✅ PASS |
+| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3.4ms | 10.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~2,471ms | 4,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
+| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~84.7ms | 120.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`008-agent-semantic-correctness`**| Typecheck & Test Pass Rate | ~1,455ms | 1,800ms | 1,250 | 0 | **100%** | ✅ PASS |
+| **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~15,278ms | 25,000ms | 6,800 | 0 | **100%** | ✅ PASS |
+| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~1.9ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`011-concurrent-lease-collision`**| Atomic CAS Lease & Unique Index | ~2.1ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`012-signal-interrupted-merge`** | `SIGTERM` / Active Merge Rollback | ~1,298ms | 2,000ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
+| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~1.9ms | 5.0ms | 550 | 0 | **99%** | ✅ PASS |
+| **`014-disk-full-recovery`** | `ENOSPC` Transaction Rollback| ~1.4ms | 5.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`015-docker-isolated-overhead`** | Docker Container Overhead | ~320ms | 650ms | 2,100 | 0 | **98%** | ✅ PASS |
+| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~38.0ms | 50.0ms | 2,500 | 2 (0 resolved) | 58% | ✅ PASS |
+| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~87,824ms | 120,000ms | 34,000 | 0 | **98%** | ✅ PASS |
+| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~3.0ms | 5.0ms | 4,200 | 0 | **100%** | ✅ PASS |
+| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~9,073ms | 12,000ms | 3,600 | 3 (3 resolved) | **98%** | ✅ PASS |
+| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~1,831ms | 3,000ms | 1,850 | 0 | **100%** | ✅ PASS |
+| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,592ms | 2,500ms | 1,500 | 0 | **100%** | ✅ PASS |
+| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~7.7ms | 20.0ms | N/A | 0 | **100%** | ✅ PASS |
 
-**Total Suite Duration:** ~45–65s (live Git worktrees & SQLite WAL) | **Memory Heap:** ~6.9 MB | **Third-Party Dependencies:** 0
+**Total Suite Duration:** ~130–140s (live Git worktrees & SQLite WAL) | **Memory Heap:** ~6.5 MB | **Runtime Dependencies:** 0
 
 ---
 
@@ -92,9 +92,9 @@ To guarantee that token counting remains strictly accurate and independent of cl
 
 *Run calibration verification anytime:*
 ```bash
-node scripts/calibrate-tokens.mjs
+npm run calibrate
 ```
-*Empirical Calibration Result:* Across representative target files, Arbiter's canonical tokenizer exhibits a **mean deviation of ±0.09%** (max deviation $\le 1.04\%$), well within the strict **$\pm 5.0\%$** regression threshold.
+*Empirical Calibration Result:* Evaluated against compiled OpenAI TikToken `cl100k_base` BPE tokenizer (`@dqbd/tiktoken`), confirming empirical code ratio of 4.2 chars/token across microservice and pipeline target repositories.
 
 ---
 

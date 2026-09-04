@@ -571,14 +571,31 @@ export class DeterministicAdapter {
           branch: `arbiter/${taskId}`,
           status: 'READY'
         });
-
-        const wt = worktrees.createWorktree(taskId, 'main');
-        fs.writeFileSync(path.join(wt.path, 'src', `feature_${i}.ts`), `export const FEATURE_${i} = ${i};\n`, 'utf8');
-        worktrees.commitAll(wt.path, `Complete feature ${i}`);
-        db.updateTask(taskId, { status: 'COMPLETED' });
       }
 
-      // Sequentially merge all 10 branches
+      // Concurrently execute workers competing via atomic CAS task claims
+      await Promise.all(
+        Array.from({ length: workerCount }, async (_, idx) => {
+          const workerIndex = idx + 1;
+          const workerId = `worker-10w-${workerIndex}`;
+          const claim = db.claimReadyTask(workerId, process.pid);
+          if (!claim) return;
+          const taskId = claim.task.id;
+          const wt = worktrees.createWorktree(taskId, 'main');
+          fs.writeFileSync(path.join(wt.path, 'src', `feature_${workerIndex}.ts`), `export const FEATURE_${workerIndex} = ${workerIndex};\n`, 'utf8');
+          worktrees.commitAll(wt.path, `Complete feature ${workerIndex}`);
+          db.setWorkerLease({
+            workerId,
+            taskId,
+            pid: process.pid,
+            heartbeatAt: new Date().toISOString(),
+            status: 'RELEASED'
+          });
+          db.updateTask(taskId, { status: 'COMPLETED' });
+        })
+      );
+
+      // Sequentially merge all branches
       let allMerged = true;
       for (let i = 1; i <= workerCount; i++) {
         const taskId = `task-10w-${i}`;
@@ -653,23 +670,43 @@ export class DeterministicAdapter {
     }
   }
 
-  // 011: Real atomic CAS lease claim in SQLite
+  // 011: Real atomic CAS lease claim in SQLite & duplicate active lease rejection
   private async runConcurrentLeaseCollision(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     const db = new ArbiterDatabase(':memory:');
     try {
       const taskId = 'task-race-lease';
       makeTask(db, { id: taskId, title: 'Contended Task', description: 'Two workers race', baseBranch: 'main', branch: `arbiter/${taskId}`, status: 'READY' });
 
-      // Worker A acquires lease
-      db.setWorkerLease({ workerId: 'worker-A', taskId, pid: process.pid, heartbeatAt: new Date().toISOString(), status: 'ACTIVE' });
-      db.updateTask(taskId, { status: 'IN_PROGRESS', assignedWorkerId: 'worker-A' });
+      // Worker A and Worker B concurrently contend for the task via atomic CAS claim
+      const [claimA, claimB] = await Promise.all([
+        Promise.resolve().then(() => db.claimReadyTask('worker-A', process.pid)),
+        Promise.resolve().then(() => db.claimReadyTask('worker-B', process.pid))
+      ]);
 
-      // Worker B attempts to claim the same task
-      const task = db.getTask(taskId);
-      const workerBSuccess = task?.status === 'READY'; // CAS condition check
+      const winner = claimA ? 'worker-A' : (claimB ? 'worker-B' : null);
+      const loser = claimA ? 'worker-B' : 'worker-A';
+      const exactOneWinner = (claimA !== null && claimB === null) || (claimA === null && claimB !== null);
 
-      collector.setDetail('workerA_status', 'ACQUIRED');
-      collector.setDetail('workerB_status', workerBSuccess ? 'ACQUIRED' : 'EAGAIN');
+      // Verify partial unique index enforces single active lease across database
+      let duplicateLeaseRejected = false;
+      try {
+        db.setWorkerLease({
+          taskId,
+          workerId: loser,
+          pid: process.pid,
+          heartbeatAt: new Date().toISOString(),
+          status: 'ACTIVE'
+        });
+      } catch (e: any) {
+        if (e.message?.includes('UNIQUE') || e.code === 'SQLITE_CONSTRAINT') {
+          duplicateLeaseRejected = true;
+        }
+      }
+
+      collector.setDetail('workerA_status', claimA ? 'ACQUIRED' : 'EAGAIN');
+      collector.setDetail('workerB_status', claimB ? 'ACQUIRED' : 'EAGAIN');
+      collector.setDetail('atomicCasWinner', winner);
+      collector.setDetail('duplicateActiveLeaseRejected', duplicateLeaseRejected);
       collector.setDetail('backoffRetries', 1);
       collector.setDetail('deadlockDetected', false);
       collector.setAccuracy(100);
@@ -679,7 +716,7 @@ export class DeterministicAdapter {
         scenarioId: scenario.id,
         title: scenario.title,
         tier: 'deterministic',
-        passed: !workerBSuccess,
+        passed: exactOneWinner && duplicateLeaseRejected,
         metrics
       };
     } finally {
@@ -700,18 +737,30 @@ export class DeterministicAdapter {
       const taskId = 'task-merge-interrupt';
       makeTask(db, { id: taskId, title: 'Interrupt Task', description: 'Simulate interrupt', baseBranch: 'main', branch: `arbiter/${taskId}`, status: 'READY' });
       const wt = worktrees.createWorktree(taskId, 'main');
-      fs.writeFileSync(path.join(wt.path, 'src', 'interrupt.ts'), 'export const INTR = 1;\n', 'utf8');
-      worktrees.commitAll(wt.path, 'Interrupted commit');
+      fs.writeFileSync(path.join(wt.path, 'src', 'interrupt.ts'), 'export const INTR = "branch_version";\n', 'utf8');
+      worktrees.commitAll(wt.path, 'Branch commit on interrupt.ts');
 
-      // Execute git merge abort cleanup directly
+      // Create a conflicting change on main so git merge generates real MERGE_HEAD state
+      fs.writeFileSync(path.join(repoPath, 'src', 'interrupt.ts'), 'export const INTR = "main_version";\n', 'utf8');
+      execFileSync('git', ['add', 'src/interrupt.ts'], { cwd: repoPath, windowsHide: true });
+      execFileSync('git', ['commit', '-m', 'Main commit on interrupt.ts'], { cwd: repoPath, windowsHide: true });
+
+      // Start the merge which conflicts and leaves MERGE_HEAD
       try {
-        execFileSync('git', ['merge', '--abort'], { cwd: repoPath, windowsHide: true });
+        execFileSync('git', ['merge', `arbiter/${taskId}`], { cwd: repoPath, windowsHide: true });
       } catch {
-        // No merge in progress is fine
+        // Expected conflict leaving git in MERGING state
       }
 
+      const mergeHeadPath = path.join(repoPath, '.git', 'MERGE_HEAD');
+      const hadMergeHead = fs.existsSync(mergeHeadPath);
+
+      // Execute git merge --abort cleanup on the real active merge
+      execFileSync('git', ['merge', '--abort'], { cwd: repoPath, windowsHide: true });
+
+      const mergeHeadAfterAbort = fs.existsSync(mergeHeadPath);
       const statusOutput = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath, encoding: 'utf8' }).trim();
-      const mainPristine = statusOutput.length === 0;
+      const mainPristine = hadMergeHead && !mergeHeadAfterAbort && statusOutput.length === 0;
 
       db.close();
 
@@ -866,17 +915,48 @@ export class DeterministicAdapter {
 
   // 016: Real naive mutex contention baseline
   private async runNaiveMutexContention(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'naive-mutex-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'naive-mutex-det-'));
     try {
       const lockFile = path.join(tempDir, '.lock');
-      let contentionCount = 8; // Calibrated baseline contention events for 4 concurrent processes
-      let totalWaitMs = 12.5;
+      const sharedFile = path.join(tempDir, 'shared_code.ts');
+      fs.writeFileSync(sharedFile, '// initial state\n', 'utf8');
+
+      let contentionCount = 0;
+      let totalWaitMs = 0;
+      let successfulWrites = 0;
+      const concurrency = (scenario.concurrency as number) || 4;
+      const workers = Array.from({ length: concurrency }, (_, i) => i + 1);
+
+      await Promise.all(workers.map(async (worker) => {
+        const workerStart = performance.now();
+        let acquired = false;
+        let retries = 0;
+        while (!acquired && retries < 25) {
+          try {
+            fs.writeFileSync(lockFile, `worker-${worker}`, { flag: 'wx' });
+            acquired = true;
+          } catch {
+            contentionCount++;
+            retries++;
+            await new Promise(r => setTimeout(r, 4));
+          }
+        }
+        totalWaitMs += (performance.now() - workerStart);
+        if (acquired) {
+          fs.appendFileSync(sharedFile, `// Worker ${worker} write\n`);
+          successfulWrites++;
+          await new Promise(r => setTimeout(r, 2));
+          try { fs.unlinkSync(lockFile); } catch {}
+        }
+      }));
+
+      const accuracy = contentionCount > 0 ? Math.max(30, Math.min(85, Math.round(100 - (contentionCount * 7)))) : 85;
 
       collector.addTokens(2500);
       collector.recordConflict(false);
       collector.recordConflict(false);
       collector.setMainValidity(false);
-      collector.setAccuracy(45);
+      collector.setAccuracy(accuracy);
       collector.setDetail('coordinationStrategy', 'SHARED_DIRECTORY_FILE_MUTEX');
       collector.setDetail('lockContentionCount', contentionCount);
       collector.setDetail('mutexWaitMs', Number(totalWaitMs.toFixed(2)));
@@ -899,7 +979,7 @@ export class DeterministicAdapter {
     }
   }
 
-  // 017: Parallel saturation limit (10 workers in standard suite; scalable with --stress or workersCount)
+  // 017: Parallel saturation limit (50 workers)
   private async runParallel50Workers(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
     const { repoPath, cleanup } = createTempGitRepo(targetPath);
@@ -912,9 +992,8 @@ export class DeterministicAdapter {
       const mergeQueue = new MergeQueue(db, worktrees, repoPath);
 
       const requestedWorkers = (scenario.workersCount as number) || (scenario.concurrency as number) || 50;
-      const actualWorktreesToProvision = process.argv.includes('--stress') ? requestedWorkers : Math.min(requestedWorkers, 10);
 
-      for (let i = 1; i <= actualWorktreesToProvision; i++) {
+      for (let i = 1; i <= requestedWorkers; i++) {
         const taskId = `task-sat-${i}`;
         makeTask(db, {
           id: taskId,
@@ -924,7 +1003,10 @@ export class DeterministicAdapter {
           branch: `arbiter/${taskId}`,
           status: 'READY'
         });
+      }
 
+      for (let i = 1; i <= requestedWorkers; i++) {
+        const taskId = `task-sat-${i}`;
         const wt = worktrees.createWorktree(taskId, 'main');
         fs.writeFileSync(path.join(wt.path, 'src', `sat_${i}.ts`), `export const SAT_${i} = ${i};\n`, 'utf8');
         worktrees.commitAll(wt.path, `Complete saturation ${i}`);
@@ -932,7 +1014,7 @@ export class DeterministicAdapter {
       }
 
       let allMerged = true;
-      for (let i = 1; i <= actualWorktreesToProvision; i++) {
+      for (let i = 1; i <= requestedWorkers; i++) {
         const taskId = `task-sat-${i}`;
         const res = mergeQueue.mergeTask(taskId, 'main');
         if (!res.ok) allMerged = false;
