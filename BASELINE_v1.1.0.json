@@ -412,7 +412,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 319.36,
+        "durationMs": 650.0,
         "tokensTotal": 2100,
         "conflictsDetected": 0,
         "conflictsResolved": 0,

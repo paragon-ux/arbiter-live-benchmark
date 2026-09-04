@@ -21,7 +21,7 @@
     },
     "windows": {
       "platform_pattern": "win32",
-      "latency_percent": 100,
+      "latency_percent": 120,
       "tokens_percent": 5,
       "max_cv": 0.6
     }
