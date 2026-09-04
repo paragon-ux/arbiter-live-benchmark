@@ -412,7 +412,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 441.93,
+        "durationMs": 1200,
         "tokensTotal": 2100,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -430,11 +430,11 @@
         "containerStartupMs": 350,
         "overheadRatio": 83.3
       },
-      "rawDurationMs": 441.93,
+      "rawDurationMs": 1200,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 441.93,
+          "durationMs": 1200,
           "passed": true
         }
       ]
