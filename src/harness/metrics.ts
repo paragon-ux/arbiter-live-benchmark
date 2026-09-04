@@ -1,4 +1,5 @@
 import { ScenarioMetrics, StatisticalMetrics } from './types.js';
+import { countTokens } from './tokens.js';
 
 export class MetricsCollector {
   private startTime = 0;
@@ -21,8 +22,8 @@ export class MetricsCollector {
   }
 
   addTokensFromText(text: string): void {
-    // Weighted tokenization heuristic (3.4 chars/token for code ASTs, braces, indentations)
-    const tokens = Math.ceil(text.length / 3.4);
+    // Canonical calibrated token counting (consistent with tokens.ts)
+    const tokens = countTokens(text);
     this.metrics.tokensTotal += tokens;
   }
 

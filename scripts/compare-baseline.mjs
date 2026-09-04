@@ -9,7 +9,7 @@
  * Invariants: Zero external npm dependencies; pure Node 22 native modules.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function getPlatformConfig(tolerancesData, platform = process.platform) {
@@ -96,9 +96,11 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
       reasons.push(`TOKEN_GROWTH (+${tokenDeltaPercent.toFixed(1)}% > ${maxTokenPercent}%)`);
     }
 
-    if (latencyDeltaPercent > maxLatencyPercent && latencyDeltaMs > 25.0) {
+    // Relative latency jitter threshold: scales with baseline to catch sub-ms regressions without micro-jitter noise
+    const minAbsoluteDeltaMs = Math.max(1.5, Math.min(50.0, baseDuration * 0.20));
+    if (latencyDeltaPercent > maxLatencyPercent && latencyDeltaMs > minAbsoluteDeltaMs) {
       regressed = true;
-      reasons.push(`LATENCY_SPIKE (+${latencyDeltaPercent.toFixed(1)}% > ${maxLatencyPercent}%, +${latencyDeltaMs.toFixed(2)}ms)`);
+      reasons.push(`LATENCY_SPIKE (+${latencyDeltaPercent.toFixed(1)}% > ${maxLatencyPercent}%, +${latencyDeltaMs.toFixed(2)}ms > ${minAbsoluteDeltaMs.toFixed(2)}ms)`);
     }
 
     if (regressed) {
@@ -161,7 +163,8 @@ export function formatComparisonReport(result) {
 // CLI Execution
 if (process.argv[1] && process.argv[1].endsWith('compare-baseline.mjs')) {
   const currentPath = resolve(process.argv[2] || 'results/latest.json');
-  const baselinePath = resolve(process.argv[3] || 'BASELINE_v1.0.0.json');
+  const defaultBaseline = existsSync(resolve('BASELINE_v1.1.0.json')) ? 'BASELINE_v1.1.0.json' : 'BASELINE_v1.0.0.json';
+  const baselinePath = resolve(process.argv[3] || defaultBaseline);
   const tolerancesPath = resolve(process.argv[4] || 'REGRESSION_TOLERANCES.json');
 
   try {

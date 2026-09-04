@@ -1,6 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "rationale": {
+    "ubuntu": "Linux ext4/xfs with kernel page caching provides near-instantaneous git process spawns and file unlinking.",
+    "macos": "APFS provides copy-on-write clonefile acceleration but exhibits higher process creation latency than Linux.",
+    "windows": "NTFS filesystem filter drivers, mandatory handle locking semantics, and real-time antivirus (e.g. Windows Defender) file-system interception introduce significant variable jitter on rapid consecutive git.exe process spawning and worktree cleanup, requiring a wider 100% duration tolerance."
+  },
   "tolerances": {
     "ubuntu": {
       "platform_pattern": "linux",

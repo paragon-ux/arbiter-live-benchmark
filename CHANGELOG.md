@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] — 2026-09-04 ("Failure Mode Expansion & Architectural Hardening")
+
+### Added
+- **Scenario 019: N-Way Concurrent Merge Conflicts & Worktree Quarantine (`019-n-way-merge-conflicts.json`)**:
+  - Evaluates 5 concurrent workers in isolated worktrees: 2 workers make orthogonal non-conflicting edits and merge cleanly into `main`, while 3 workers introduce colliding modifications on overlapping lines of `src/auth.ts`.
+  - Validates that Arbiter cleanly merges independent feature branches, detects 3-way collisions, immediately executes `git merge --abort`, isolates failing worktrees in `CONFLICT`, and keeps `main` pristine.
+- **Scenario 020: Concurrent Upstream Main Drift & Auto-Rebase Synchronization (`020-concurrent-main-drift.json`)**:
+  - Evaluates a feature worker operating in a worktree while an upstream commit is pushed directly to `main` mid-flight (simulating external team or CI merges).
+  - Validates that Arbiter's `MergeQueue` synchronizes upstream drift, cleanly executes 3-way merge/rebase reconciliation, and verifies full commit preservation on `main`.
+- **PRNG Multi-Run Determinism Verification**:
+  - Added unit test asserting 100% byte-for-byte determinism in token accounting, file scanning, and state recovery across repeated scenario executions.
+- **Reference Baseline `BASELINE_v1.1.0.json`**:
+  - Established locked empirical reference covering all 20 scenarios with 0 regressions.
+
+### Changed
+- **Unified Token Calculation**:
+  - Reconciled character-to-token math across `src/harness/tokens.ts` and `src/harness/metrics.ts` to a single canonical standard (3.8 characters per token via `countTokens`).
+- **Dynamic Relative Jitter Threshold in Comparator**:
+  - Replaced the fixed 25ms absolute jitter floor in `scripts/compare-baseline.mjs` with an adaptive relative threshold: `Math.max(1.5, Math.min(50.0, baseDuration * 0.20))`.
+  - Eliminates blind spots for sub-millisecond scenarios while remaining immune to OS scheduling jitter.
+- **Scenario Timeout Protection**:
+  - Added timeout enforcement via `Promise.race` in `BenchmarkOrchestrator` to prevent hanging processes during scenario execution.
+- **Multi-Trial Duration Preservation**:
+  - Added `rawDurationMs` and `trialHistory` tracking to `ScenarioResult` to prevent statistical medians from discarding raw multi-trial execution data.
+- **Strongly Typed `ScenarioMetrics` & Detail Interfaces**:
+  - Added strongly typed detail interfaces (`NWayConflictDetails`, `UpstreamMainDriftDetails`, `ColdExplorationDetails`, etc.) and optional top-level metrics in `src/harness/types.ts`.
+- **Platform Tolerance Rationale**:
+  - Updated `REGRESSION_TOLERANCES.json` with technical justification for Windows 100% duration tolerance (NTFS filter drivers, mandatory handle locks, and Defender real-time scanning during rapid `git.exe` spawns vs Linux ext4/APFS).
+- **BOM Defense & Strict Schema Validation**:
+  - Defensively stripped UTF-8 BOM characters in `BenchmarkOrchestrator.loadScenarios` and hardened `test/scenarios.test.ts` to strictly validate all 20 scenario definitions.
+
+---
+
 ## [1.0.0] — 2026-09-04 ("Live Empirical Multi-Agent Benchmark")
 
 ### Initial Release: Genuine Live Multi-Agent Verification Suite

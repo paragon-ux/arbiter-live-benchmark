@@ -292,5 +292,60 @@ describe('DeterministicAdapter Suite', () => {
     assert.equal(res.metrics.accuracyPercent, 100);
     assert.equal(res.metrics.details.topologicalResolution, 'KAHN_SORT_SUCCESS');
   });
+
+  it('simulates 019-n-way-merge-conflicts cleanly merging orthogonal branches and quarantining conflicts', async () => {
+    const res = await adapter.execute({
+      id: '019-n-way-merge-conflicts',
+      title: 'N-Way Merge Conflicts',
+      description: 'Test',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'n_way_merge_conflicts'
+    });
+
+    assert.ok(res.passed, 'Scenario 019 must pass');
+    assert.equal(res.metrics.conflictsDetected, 3, 'Must detect 3 merge conflicts');
+    assert.equal(res.metrics.conflictsResolved, 3, 'Must rollback and resolve 3 conflicts');
+    assert.equal(res.metrics.mainBranchValid, true, 'Main branch must remain valid');
+    assert.equal(res.metrics.details.contendingWorkers, 5);
+    assert.equal(res.metrics.details.conflictsQuarantined, 3);
+    assert.equal(res.metrics.details.mainBranchIntact, true);
+  });
+
+  it('simulates 020-concurrent-main-drift cleanly synchronizing upstream main commits', async () => {
+    const res = await adapter.execute({
+      id: '020-concurrent-main-drift',
+      title: 'Concurrent Upstream Main Drift',
+      description: 'Test',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'concurrent_main_drift'
+    });
+
+    assert.ok(res.passed, 'Scenario 020 must pass');
+    assert.equal(res.metrics.mainBranchValid, true, 'Main branch must remain valid');
+    assert.equal(res.metrics.details.upstreamCommitsInjected, 1);
+    assert.equal(res.metrics.details.mergeClean, true);
+  });
+
+  it('verifies multi-run determinism produces identical token and behavioral metrics', async () => {
+    const runA = await adapter.execute({
+      id: '001-single-agent-cold',
+      title: 'Determinism Test A',
+      description: 'Test A',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'cold'
+    });
+
+    const runB = await adapter.execute({
+      id: '001-single-agent-cold',
+      title: 'Determinism Test B',
+      description: 'Test B',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'cold'
+    });
+
+    assert.equal(runA.metrics.tokensTotal, runB.metrics.tokensTotal, 'Tokens must be 100% deterministic');
+    assert.equal(runA.metrics.details.filesScanned, runB.metrics.details.filesScanned, 'Files scanned must match exactly');
+    assert.equal(runA.metrics.details.compactionRecoveryType, runB.metrics.details.compactionRecoveryType, 'Recovery type must match');
+  });
 });
 

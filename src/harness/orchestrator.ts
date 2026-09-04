@@ -22,7 +22,7 @@ export class BenchmarkOrchestrator {
     const scenarios: BaseScenario[] = [];
 
     for (const f of files) {
-      const content = fs.readFileSync(path.join(scenariosDir, f), 'utf8');
+      const content = fs.readFileSync(path.join(scenariosDir, f), 'utf8').replace(/^\uFEFF/, '');
       const parsed: BaseScenario = JSON.parse(content);
       if (!scenarioId || parsed.id === scenarioId) {
         scenarios.push(parsed);
@@ -36,13 +36,14 @@ export class BenchmarkOrchestrator {
     scenarios: BaseScenario[],
     tier: ExecutionTier = 'deterministic',
     trials: number = 1,
-    options: { verbose?: boolean } = {}
+    options: { verbose?: boolean; timeoutMs?: number } = {}
   ): Promise<BenchmarkSummary> {
     const startTime = performance.now();
     const results: ScenarioResult[] = [];
 
     for (const scenario of scenarios) {
       const trialDurations: number[] = [];
+      const trialHistory: { trialIndex: number; durationMs: number; passed: boolean }[] = [];
       let finalResult: ScenarioResult | undefined;
 
       for (let t = 0; t < trials; t++) {
@@ -51,28 +52,61 @@ export class BenchmarkOrchestrator {
           console.log(`[TRACE] [${nowIso}] Scenario: ${scenario.id} | Tier: ${tier} | Trial: ${t + 1}/${trials}`);
         }
 
+        const scenarioTimeout = (scenario.timeoutMs as number) || options.timeoutMs || 120_000;
+        let timer: NodeJS.Timeout | undefined;
+        const timeoutPromise = new Promise<ScenarioResult>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`Scenario ${scenario.id} timed out after ${scenarioTimeout}ms`)), scenarioTimeout);
+        });
+
+        const executeAdapter = async (): Promise<ScenarioResult> => {
+          if (tier === 'agy') return this.agyAdapter.execute(scenario);
+          if (tier === 'subprocess_mcp') return this.subprocessMcpAdapter.execute(scenario);
+          if (tier === 'naive_mutex') return this.naiveMutexAdapter.execute(scenario);
+          if (tier === 'process_pool') return this.processPoolAdapter.execute(scenario);
+          if (tier === 'docker') return this.dockerIsolatedAdapter.execute(scenario);
+          return this.deterministicAdapter.execute(scenario);
+        };
+
         let currentResult: ScenarioResult;
-        if (tier === 'agy') {
-          currentResult = await this.agyAdapter.execute(scenario);
-        } else if (tier === 'subprocess_mcp') {
-          currentResult = await this.subprocessMcpAdapter.execute(scenario);
-        } else if (tier === 'naive_mutex') {
-          currentResult = await this.naiveMutexAdapter.execute(scenario);
-        } else if (tier === 'process_pool') {
-          currentResult = await this.processPoolAdapter.execute(scenario);
-        } else if (tier === 'docker') {
-          currentResult = await this.dockerIsolatedAdapter.execute(scenario);
-        } else {
-          currentResult = await this.deterministicAdapter.execute(scenario);
+        try {
+          currentResult = await Promise.race([executeAdapter(), timeoutPromise]);
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          currentResult = {
+            scenarioId: scenario.id,
+            title: scenario.title,
+            tier,
+            passed: false,
+            metrics: {
+              durationMs: scenarioTimeout,
+              tokensTotal: 0,
+              conflictsDetected: 0,
+              conflictsResolved: 0,
+              mainBranchValid: false,
+              accuracyPercent: 0,
+              details: { error: errorMsg }
+            },
+            error: errorMsg
+          };
+        } finally {
+          if (timer) clearTimeout(timer);
         }
 
         trialDurations.push(currentResult.metrics.durationMs);
+        trialHistory.push({
+          trialIndex: t + 1,
+          durationMs: currentResult.metrics.durationMs,
+          passed: currentResult.passed
+        });
+
         if (!finalResult || (t === trials - 1)) {
           finalResult = currentResult;
         }
       }
 
       if (finalResult) {
+        finalResult.rawDurationMs = finalResult.metrics.durationMs;
+        finalResult.trialHistory = trialHistory;
         if (trials > 1) {
           finalResult.stats = computeStatisticalMetrics(trialDurations);
           finalResult.metrics.durationMs = finalResult.stats.medianDurationMs;

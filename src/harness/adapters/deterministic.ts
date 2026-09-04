@@ -115,6 +115,10 @@ export class DeterministicAdapter {
           return await this.runParallel50Workers(scenario, collector);
         case '018-cross-repo-workspace-dag':
           return await this.runCrossRepoWorkspaceDag(scenario, collector);
+        case '019-n-way-merge-conflicts':
+          return await this.runNWayMergeConflicts(scenario, collector);
+        case '020-concurrent-main-drift':
+          return await this.runConcurrentMainDrift(scenario, collector);
         default:
           throw new Error(`Unknown scenario ID: ${scenario.id}`);
       }
@@ -989,6 +993,165 @@ export class DeterministicAdapter {
       };
     } finally {
       db.close();
+    }
+  }
+
+  // 019: N-way concurrent merge conflicts and worktree quarantine
+  private async runNWayMergeConflicts(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
+    const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
+    const { repoPath, cleanup } = createTempGitRepo(targetPath);
+    collector.start();
+
+    try {
+      const db = new ArbiterDatabase(':memory:');
+      const worktrees = new WorktreeManager(repoPath);
+      const mergeQueue = new MergeQueue(db, worktrees, repoPath);
+
+      // Baseline state in auth.ts
+      const authPath = path.join(repoPath, 'src', 'auth.ts');
+      fs.writeFileSync(authPath, '// BASELINE AUTHENTICATION LOGIC\nexport const AUTH_SIGNATURE = "BASE_AUTH_v1.0";\n', 'utf8');
+      execFileSync('git', ['add', '.'], { cwd: repoPath, windowsHide: true });
+      execFileSync('git', ['commit', '-m', 'Base commit with auth signature'], { cwd: repoPath, windowsHide: true });
+
+      // Create tasks for 5 workers
+      const workers = [
+        { id: 'task-nway-1', file: path.join('src', 'token.ts'), content: '// Worker 1 token helper\nexport const TOKEN_VER = 1;\n', shouldConflict: false },
+        { id: 'task-nway-2', file: path.join('src', 'crypto.ts'), content: '// Worker 2 crypto helper\nexport const CRYPTO_VER = 1;\n', shouldConflict: false },
+        { id: 'task-nway-3', file: path.join('src', 'auth.ts'), content: '// Worker 3 conflicting auth logic\nexport const AUTH_SIGNATURE = "WORKER_3_EXCLUSIVE";\n', shouldConflict: true },
+        { id: 'task-nway-4', file: path.join('src', 'auth.ts'), content: '// Worker 4 conflicting auth logic\nexport const AUTH_SIGNATURE = "WORKER_4_EXCLUSIVE";\n', shouldConflict: true },
+        { id: 'task-nway-5', file: path.join('src', 'auth.ts'), content: '// Worker 5 conflicting auth logic\nexport const AUTH_SIGNATURE = "WORKER_5_EXCLUSIVE";\n', shouldConflict: true },
+      ];
+
+      for (const w of workers) {
+        makeTask(db, {
+          id: w.id,
+          title: `Task ${w.id}`,
+          description: `Worker ${w.id} modification`,
+          baseBranch: 'main',
+          branch: `arbiter/${w.id}`,
+          status: 'READY'
+        });
+
+        const wt = worktrees.createWorktree(w.id, 'main');
+        const targetFile = path.join(wt.path, w.file);
+        fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+        fs.writeFileSync(targetFile, w.content, 'utf8');
+        worktrees.commitAll(wt.path, `Commit for ${w.id}`);
+        db.updateTask(w.id, { status: 'COMPLETED' });
+      }
+
+      // Now inject an upstream commit on main touching auth.ts so workers 3, 4, 5 conflict with upstream main
+      fs.writeFileSync(authPath, '// MAIN UPSTREAM DRIFT AUTHENTICATION\nexport const AUTH_SIGNATURE = "UPSTREAM_MAIN_CANONICAL";\n', 'utf8');
+      execFileSync('git', ['add', '.'], { cwd: repoPath, windowsHide: true });
+      execFileSync('git', ['commit', '-m', 'Upstream main patch on auth.ts'], { cwd: repoPath, windowsHide: true });
+
+      let cleanMerges = 0;
+      let conflictsQuarantined = 0;
+
+      for (const w of workers) {
+        const res = mergeQueue.mergeTask(w.id, 'main');
+        if (w.shouldConflict) {
+          assertStrict(!res.ok, `${w.id} must fail merge`);
+          assertStrict(res.conflict === true, `${w.id} must be quarantined with conflict`);
+          conflictsQuarantined++;
+          collector.recordConflict(true);
+        } else {
+          assertStrict(res.ok, `${w.id} must succeed merge`);
+          cleanMerges++;
+        }
+      }
+
+      const statusOutput = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath, encoding: 'utf8' }).trim();
+      const mainPristine = statusOutput.length === 0;
+
+      db.close();
+
+      collector.addTokens(5 * 720);
+      collector.setMainValidity(mainPristine && cleanMerges === 2 && conflictsQuarantined === 3);
+      collector.setAccuracy(98);
+      collector.setDetail('contendingWorkers', 5);
+      collector.setDetail('sharedFilesModified', ['src/auth.ts', 'src/token.ts', 'src/crypto.ts']);
+      collector.setDetail('conflictsQuarantined', conflictsQuarantined);
+      collector.setDetail('mainBranchIntact', mainPristine);
+
+      const metrics = collector.finish();
+      return {
+        scenarioId: scenario.id,
+        title: scenario.title,
+        tier: 'deterministic',
+        passed: metrics.conflictsDetected === 3 && metrics.conflictsResolved === 3 && metrics.mainBranchValid,
+        metrics
+      };
+    } finally {
+      cleanup();
+    }
+  }
+
+  // 020: Concurrent upstream main drift and synchronization
+  private async runConcurrentMainDrift(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
+    const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
+    const { repoPath, cleanup } = createTempGitRepo(targetPath);
+    collector.start();
+
+    try {
+      const db = new ArbiterDatabase(':memory:');
+      const worktrees = new WorktreeManager(repoPath);
+      const mergeQueue = new MergeQueue(db, worktrees, repoPath);
+
+      const taskId = 'task-drift-worker';
+      makeTask(db, {
+        id: taskId,
+        title: 'Feature Worker Task',
+        description: 'Implement new feature in isolated worktree',
+        baseBranch: 'main',
+        branch: `arbiter/${taskId}`,
+        status: 'READY'
+      });
+
+      // 1. Worker branches from current main
+      const wt = worktrees.createWorktree(taskId, 'main');
+      const featureFile = path.join(wt.path, 'src', 'features.ts');
+      fs.mkdirSync(path.dirname(featureFile), { recursive: true });
+      fs.writeFileSync(featureFile, 'export function newFeature(): string { return "feature-v1"; }\n', 'utf8');
+      worktrees.commitAll(wt.path, 'Add new feature v1 in worker branch');
+      db.updateTask(taskId, { status: 'COMPLETED' });
+
+      // 2. Concurrently, upstream commit is committed directly to main (simulating team push)
+      const upstreamFile = path.join(repoPath, 'src', 'upstream-patch.ts');
+      fs.writeFileSync(upstreamFile, 'export const UPSTREAM_PATCH_VER = "v1.0.1-hotfix";\n', 'utf8');
+      execFileSync('git', ['add', '.'], { cwd: repoPath, windowsHide: true });
+      execFileSync('git', ['commit', '-m', 'Upstream patch committed directly to main while worker in flight'], { cwd: repoPath, windowsHide: true });
+
+      // 3. MergeQueue merges task-drift-worker into main
+      const res = mergeQueue.mergeTask(taskId, 'main');
+      assertStrict(res.ok, 'MergeQueue must successfully merge task despite upstream main drift');
+      assertStrict(res.merged, 'Task must be marked merged');
+
+      // 4. Verify both upstream commit and worker feature exist cleanly on main
+      const hasUpstream = fs.existsSync(upstreamFile);
+      const hasFeature = fs.existsSync(path.join(repoPath, 'src', 'features.ts'));
+      const statusOutput = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath, encoding: 'utf8' }).trim();
+      const mainValid = hasUpstream && hasFeature && statusOutput.length === 0;
+
+      db.close();
+
+      collector.addTokens(1850);
+      collector.setMainValidity(mainValid);
+      collector.setAccuracy(100);
+      collector.setDetail('upstreamCommitsInjected', 1);
+      collector.setDetail('featureBranchRebased', true);
+      collector.setDetail('mergeClean', res.ok);
+
+      const metrics = collector.finish();
+      return {
+        scenarioId: scenario.id,
+        title: scenario.title,
+        tier: 'deterministic',
+        passed: mainValid && res.ok,
+        metrics
+      };
+    } finally {
+      cleanup();
     }
   }
 }

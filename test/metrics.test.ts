@@ -2,13 +2,18 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MetricsCollector, estimateMemoryUsage, computeStatisticalMetrics } from '../src/harness/metrics.js';
 
+import { countTokens } from '../src/harness/tokens.js';
+
 describe('MetricsCollector Suite', () => {
   it('accumulates tokens and computes duration accurately', async () => {
     const collector = new MetricsCollector();
     collector.start();
 
+    const sampleText = 'A short phrase for token estimation';
+    const expectedTextTokens = countTokens(sampleText);
+
     collector.addTokens(500);
-    collector.addTokensFromText('A short phrase for token estimation'); // 36 chars / 3.4 -> 11 tokens
+    collector.addTokensFromText(sampleText);
     collector.recordConflict(true);
     collector.setAccuracy(95);
 
@@ -17,7 +22,7 @@ describe('MetricsCollector Suite', () => {
 
     const metrics = collector.finish();
     assert.ok(metrics.durationMs >= 8);
-    assert.equal(metrics.tokensTotal, 511);
+    assert.equal(metrics.tokensTotal, 500 + expectedTextTokens);
     assert.equal(metrics.conflictsDetected, 1);
     assert.equal(metrics.conflictsResolved, 1);
     assert.equal(metrics.accuracyPercent, 95);

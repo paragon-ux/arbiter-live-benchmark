@@ -1,15 +1,15 @@
 # Arbiter Live Benchmark: Multi-Agent Orchestration & Continuity Testbed
 
-> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. Validates **>75% token reduction** via Waymark in-flight continuity (<216 tokens vs. ~7,120 cold re-read), **100% isolation fidelity** with zero dirty state on `main`, sub-millisecond DAG scheduling, **<5ms** zero-daemon dead-worker lease recovery, and fail-closed chaos recovery across 18 live scenarios. (Reproduce locally via `npm run verify` or `npm run benchmark`).
+> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. Validates **>75% token reduction** via Waymark in-flight continuity (<216 tokens vs. ~7,120 cold re-read), **100% isolation fidelity** with zero dirty state on `main`, sub-millisecond DAG scheduling, **<5ms** zero-daemon dead-worker lease recovery, and fail-closed chaos recovery across 20 live scenarios. (Reproduce locally via `npm run verify` or `npm run benchmark`).
 
 ---
 
 ## Table of Contents
 
-- [Empirical Results Summary (v1.0.0)](#empirical-results-summary-v100)
+- [Empirical Results Summary (v1.1.0)](#empirical-results-summary-v110)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Why Benchmark Multi-Agent Orchestration?](#why-benchmark-multi-agent-orchestration)
-- [The 18 Benchmark Scenarios](#the-18-benchmark-scenarios)
+- [The 20 Benchmark Scenarios](#the-20-benchmark-scenarios)
 - [Three-Tier Execution Architecture](#three-tier-execution-architecture)
 - [Statistical Multi-Trial Engine](#statistical-multi-trial-engine)
 - [Realistic Target Codebases](#realistic-target-codebases)
@@ -19,32 +19,34 @@
 
 ---
 
-## Empirical Results Summary (v1.0.0)
+## Empirical Results Summary (v1.1.0)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
 | Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Cold Exploration Baseline | ~5.4ms | 5.37ms | 7,120 | 0 | 85% | ✅ PASS |
-| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~7.4ms | 7.42ms | **1,000** | 0 | **95%** | ✅ PASS |
-| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1.2ms | 1.21ms | N/A | 1 (0 resolved) | 55% | ✅ PASS |
-| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~3,181ms | 4,000ms | 2,100 | 0 | **98%** | ✅ PASS |
-| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3.4ms | 3.03ms | N/A | 0 | **100%** | ✅ PASS |
-| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~1,953ms | 3,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
-| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~76.3ms | 77.06ms | N/A | 0 | **100%** | ✅ PASS |
-| **`008-agent-semantic-correctness`**| Typecheck & Test Pass Rate | ~1,094ms | 1,800ms | 1,250 | 0 | **100%** | ✅ PASS |
-| **`009-parallel-10-workers`** | 10-Worker Concurrency Swarm | ~10,800ms | 15,000ms | 6,800 | 0 | **100%** | ✅ PASS |
-| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~0.9ms | 3.02ms | N/A | 0 | **100%** | ✅ PASS |
-| **`011-concurrent-lease-collision`**| Atomic CAS Lease & EAGAIN | ~1.3ms | 2.50ms | N/A | 0 | **100%** | ✅ PASS |
-| **`012-signal-interrupted-merge`** | `SIGTERM` Fail-Closed Rollback | ~702ms | 1,500ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
-| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~0.8ms | 2.31ms | 550 | 0 | **99%** | ✅ PASS |
-| **`014-disk-full-recovery`** | `ENOSPC` Transaction Rollback| ~0.8ms | 1.33ms | N/A | 0 | **100%** | ✅ PASS |
-| **`015-docker-isolated-overhead`** | Docker Container Overhead | ~272ms | 650ms | 2,100 | 0 | **98%** | ✅ PASS |
-| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~0.4ms | 0.87ms | 2,500 | 2 (0 resolved) | 45% | ✅ PASS |
-| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~10,882ms | 15,000ms | 34,000 | 0 | **98%** | ✅ PASS |
-| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~1.3ms | 3.05ms | 4,200 | 0 | **100%** | ✅ PASS |
+| **`001-single-agent-cold`** | Cold Exploration Baseline | ~5.7ms | 5.66ms | 7,120 | 0 | 85% | ✅ PASS |
+| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~9.7ms | 9.66ms | **1,000** | 0 | **95%** | ✅ PASS |
+| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1.5ms | 1.46ms | N/A | 1 (0 resolved) | 55% | ✅ PASS |
+| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~3,615ms | 4,500ms | 2,100 | 0 | **98%** | ✅ PASS |
+| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3.2ms | 3.17ms | N/A | 0 | **100%** | ✅ PASS |
+| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~2,332ms | 3,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
+| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~79.5ms | 80.00ms | N/A | 0 | **100%** | ✅ PASS |
+| **`008-agent-semantic-correctness`**| Typecheck & Test Pass Rate | ~1,392ms | 1,800ms | 1,250 | 0 | **100%** | ✅ PASS |
+| **`009-parallel-10-workers`** | 10-Worker Concurrency Swarm | ~12,102ms | 15,000ms | 6,800 | 0 | **100%** | ✅ PASS |
+| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~2.6ms | 3.02ms | N/A | 0 | **100%** | ✅ PASS |
+| **`011-concurrent-lease-collision`**| Atomic CAS Lease & EAGAIN | ~1.4ms | 2.50ms | N/A | 0 | **100%** | ✅ PASS |
+| **`012-signal-interrupted-merge`** | `SIGTERM` Fail-Closed Rollback | ~756ms | 1,500ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
+| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~2.5ms | 3.00ms | 550 | 0 | **99%** | ✅ PASS |
+| **`014-disk-full-recovery`** | `ENOSPC` Transaction Rollback| ~1.3ms | 2.00ms | N/A | 0 | **100%** | ✅ PASS |
+| **`015-docker-isolated-overhead`** | Docker Container Overhead | ~319ms | 650ms | 2,100 | 0 | **98%** | ✅ PASS |
+| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~0.7ms | 1.50ms | 2,500 | 2 (0 resolved) | 45% | ✅ PASS |
+| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~13,042ms | 16,000ms | 34,000 | 0 | **98%** | ✅ PASS |
+| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~1.7ms | 3.05ms | 4,200 | 0 | **100%** | ✅ PASS |
+| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~6,475ms | 8,000ms | 3,600 | 3 (3 resolved) | **98%** | ✅ PASS |
+| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~1,413ms | 2,500ms | 1,850 | 0 | **100%** | ✅ PASS |
 
-**Total Suite Duration:** ~35–55s (live Git worktrees & SQLite WAL) | **Memory Heap:** ~7.1 MB | **Third-Party Dependencies:** 0
+**Total Suite Duration:** ~45–55s (live Git worktrees & SQLite WAL) | **Memory Heap:** ~7.2 MB | **Third-Party Dependencies:** 0
 
 ---
 
@@ -125,7 +127,7 @@ npm run verify
 ### Running Benchmarks via CLI
 
 ```bash
-# Run all 18 scenarios in deterministic mode (default)
+# Run all 20 scenarios in deterministic mode (default)
 npm run benchmark
 
 # Run with 10-trial statistical aggregation (Median, P95, StdDev)

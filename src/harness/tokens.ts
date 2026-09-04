@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Token Counter for Empirical Codebase & Trajectory Measurements
+ * Canonical Token Counter for Empirical Codebase & Trajectory Measurements
  * 
  * Uses standard BPE/character calibration for code:
  * Code tokenization typically yields ~3.7-4.0 characters per token across
  * modern LLM tokenizers (tiktoken cl100k_base, Claude, Gemini).
  */
-export function countTokens(text: string): number {
+export function countTokens(text: string, charsPerToken: number = 3.8): number {
   if (!text || text.length === 0) return 0;
   // A calibrated regex tokenizer splitting into words, whitespace, and code symbols
   const tokens = text.match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]+|\s+/gu) || [];
@@ -18,8 +18,8 @@ export function countTokens(text: string): number {
     if (t.length <= 4) {
       tokenCount += 1;
     } else {
-      // Longer tokens scale roughly by 3.8 chars per subword
-      tokenCount += Math.ceil(t.length / 3.8);
+      // Longer tokens scale roughly by charsPerToken per subword
+      tokenCount += Math.ceil(t.length / charsPerToken);
     }
   }
   return tokenCount;

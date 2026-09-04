@@ -1,0 +1,22 @@
+{
+  "id": "020-concurrent-main-drift",
+  "title": "Concurrent Upstream Main Drift & Auto-Rebase Synchronization",
+  "description": "A feature worker branches from main in an isolated worktree. Before worker merges, an upstream commit is pushed directly to main (simulating external CI or team merge). Arbiter detects upstream drift, performs a 3-way merge/rebase synchronization, validates integrity, and completes the merge cleanly without dropping upstream commits.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "concurrent_main_drift",
+  "tasks": [
+    {
+      "id": "task-drift-worker",
+      "branch": "arbiter/task-drift-worker",
+      "file": "src/features.ts",
+      "editRange": [1, 15],
+      "content": "export function newFeature(): string { return 'feature-v1'; }"
+    }
+  ],
+  "expectedMetrics": {
+    "upstreamCommitsInjected": 1,
+    "featureBranchRebased": true,
+    "mergeClean": true,
+    "mainBranchValid": true
+  }
+}

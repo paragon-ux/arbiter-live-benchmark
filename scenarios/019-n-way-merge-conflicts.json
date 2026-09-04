@@ -1,0 +1,50 @@
+{
+  "id": "019-n-way-merge-conflicts",
+  "title": "N-Way Concurrent Merge Conflict & Worktree Quarantine",
+  "description": "5 concurrent workers in isolated worktrees modify shared microservice files: 2 modify orthogonal files and merge cleanly, while 3 modify overlapping lines in auth.ts. Arbiter cleanly merges non-conflicting branches, detects 3-way collisions, aborts merges, isolates conflicting worktrees in CONFLICT, and maintains pristine main.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "n_way_merge_conflicts",
+  "tasks": [
+    {
+      "id": "task-nway-1",
+      "branch": "arbiter/task-nway-1",
+      "file": "src/tokens.ts",
+      "editRange": [10, 20],
+      "content": "// Worker 1 independent token utilities"
+    },
+    {
+      "id": "task-nway-2",
+      "branch": "arbiter/task-nway-2",
+      "file": "src/crypto.ts",
+      "editRange": [15, 30],
+      "content": "// Worker 2 independent crypto helpers"
+    },
+    {
+      "id": "task-nway-3",
+      "branch": "arbiter/task-nway-3",
+      "file": "src/auth.ts",
+      "editRange": [10, 30],
+      "content": "// Worker 3 colliding edits on auth handler"
+    },
+    {
+      "id": "task-nway-4",
+      "branch": "arbiter/task-nway-4",
+      "file": "src/auth.ts",
+      "editRange": [15, 35],
+      "content": "// Worker 4 colliding edits on auth handler"
+    },
+    {
+      "id": "task-nway-5",
+      "branch": "arbiter/task-nway-5",
+      "file": "src/auth.ts",
+      "editRange": [20, 40],
+      "content": "// Worker 5 colliding edits on auth handler"
+    }
+  ],
+  "expectedMetrics": {
+    "contendingWorkers": 5,
+    "conflictsQuarantined": 3,
+    "cleanMerges": 2,
+    "mainBranchIntact": true
+  }
+}
