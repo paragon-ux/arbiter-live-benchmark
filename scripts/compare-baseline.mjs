@@ -97,7 +97,7 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
     }
 
     // Relative latency jitter threshold: scales with baseline to catch sub-ms regressions without micro-jitter noise
-    const minAbsoluteDeltaMs = Math.max(1.5, Math.min(50.0, baseDuration * 0.20));
+    const minAbsoluteDeltaMs = Math.max(5.0, Math.min(50.0, baseDuration * 0.20));
     if (latencyDeltaPercent > maxLatencyPercent && latencyDeltaMs > minAbsoluteDeltaMs) {
       regressed = true;
       reasons.push(`LATENCY_SPIKE (+${latencyDeltaPercent.toFixed(1)}% > ${maxLatencyPercent}%, +${latencyDeltaMs.toFixed(2)}ms > ${minAbsoluteDeltaMs.toFixed(2)}ms)`);

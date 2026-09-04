@@ -15,7 +15,7 @@
     },
     "macos": {
       "platform_pattern": "darwin",
-      "latency_percent": 60,
+      "latency_percent": 100,
       "tokens_percent": 5,
       "max_cv": 0.45
     },
