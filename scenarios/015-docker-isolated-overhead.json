@@ -1,0 +1,20 @@
+{
+  "id": "015-docker-isolated-overhead",
+  "title": "Docker Containerization Overhead Comparative Baseline",
+  "description": "Quantifies container spin-up and teardown latency overhead compared to Arbiter ephemeral Git worktrees across 3 concurrent agent workers.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "docker_comparative",
+  "concurrency": 3,
+  "tasks": [
+    { "id": "task-container-1", "file": "src/auth.ts", "workerId": "docker-worker-1" },
+    { "id": "task-container-2", "file": "src/rateLimiter.ts", "workerId": "docker-worker-2" },
+    { "id": "task-container-3", "file": "src/token.ts", "workerId": "docker-worker-3" }
+  ],
+  "expectedMetrics": {
+    "worktreesProvisioned": 3,
+    "worktreesIsolated": true,
+    "overheadRatioMin": 50,
+    "conflicts": 0,
+    "mainClean": true
+  }
+}

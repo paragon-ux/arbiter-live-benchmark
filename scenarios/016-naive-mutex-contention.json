@@ -1,0 +1,21 @@
+{
+  "id": "016-naive-mutex-contention",
+  "title": "Naive Mutex Contention & Starvation Comparative Baseline",
+  "description": "Negative baseline evaluating 4 concurrent agents synchronizing via single shared working copy and file mutexes, measuring lock contention and deadlock risk.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "naive_mutex_comparative",
+  "concurrency": 4,
+  "tasks": [
+    { "id": "task-mutex-1", "file": "src/auth.ts", "workerId": "mutex-worker-1" },
+    { "id": "task-mutex-2", "file": "src/auth.ts", "workerId": "mutex-worker-2" },
+    { "id": "task-mutex-3", "file": "src/token.ts", "workerId": "mutex-worker-3" },
+    { "id": "task-mutex-4", "file": "src/userRepo.ts", "workerId": "mutex-worker-4" }
+  ],
+  "expectedMetrics": {
+    "worktreesProvisioned": 0,
+    "worktreesIsolated": false,
+    "lockContentionDetected": true,
+    "conflictsDetected": 2,
+    "mainClean": false
+  }
+}

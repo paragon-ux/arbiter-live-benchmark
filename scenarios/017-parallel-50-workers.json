@@ -1,0 +1,22 @@
+{
+  "id": "017-parallel-50-workers",
+  "title": "High-Concurrency Multi-Agent Swarm (50 Workers)",
+  "description": "Massive concurrency scale stress test executing 50 concurrent agent workers across isolated worktrees, evaluating SQLite WAL write serialization and worktree allocation limits.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "arbiter_swarm_50",
+  "concurrency": 50,
+  "tasks": [
+    { "id": "task-50-1", "file": "src/auth.ts", "workerId": "worker-1" },
+    { "id": "task-50-2", "file": "src/token.ts", "workerId": "worker-2" },
+    { "id": "task-50-3", "file": "src/userRepo.ts", "workerId": "worker-3" },
+    { "id": "task-50-4", "file": "src/rateLimiter.ts", "workerId": "worker-4" },
+    { "id": "task-50-5", "file": "src/auditLogger.ts", "workerId": "worker-5" }
+  ],
+  "expectedMetrics": {
+    "worktreesProvisioned": 50,
+    "worktreesIsolated": true,
+    "conflicts": 0,
+    "mainClean": true,
+    "accuracyPercentMin": 95
+  }
+}

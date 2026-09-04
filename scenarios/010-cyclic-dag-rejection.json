@@ -1,0 +1,34 @@
+{
+  "id": "010-cyclic-dag-rejection",
+  "title": "Cyclic DAG Dependency Rejection & Rollback",
+  "description": "Submits an invalid task dependency graph containing a directed cycle (A -> B -> C -> A), asserting deterministic cycle rejection in <2ms with zero partial execution.",
+  "targetRepo": "targets/data-pipeline",
+  "mode": "dag",
+  "dag": {
+    "tasks": [
+      {
+        "id": "task-A",
+        "deps": [
+          "task-C"
+        ]
+      },
+      {
+        "id": "task-B",
+        "deps": [
+          "task-A"
+        ]
+      },
+      {
+        "id": "task-C",
+        "deps": [
+          "task-B"
+        ]
+      }
+    ]
+  },
+  "expectedMetrics": {
+    "cycleDetected": true,
+    "rejectionLatencyMs": 2,
+    "tasksExecuted": 0
+  }
+}

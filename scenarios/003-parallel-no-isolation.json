@@ -1,0 +1,42 @@
+{
+  "id": "003-parallel-no-isolation",
+  "title": "Parallel Multi-Agent Chaos (No Isolation Baseline)",
+  "description": "3 concurrent agents modify shared working directory directly without Git worktree isolation, causing dirty trees, overwritten edits, and broken builds.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "unisolated_chaos",
+  "workers": [
+    {
+      "id": "worker-chaos-1",
+      "targetFile": "src/auth.ts",
+      "editRange": [
+        40,
+        55
+      ],
+      "replacement": "// Refactor A: verifyPassword split"
+    },
+    {
+      "id": "worker-chaos-2",
+      "targetFile": "src/auth.ts",
+      "editRange": [
+        48,
+        62
+      ],
+      "replacement": "// Refactor B: logging and audit rewrite"
+    },
+    {
+      "id": "worker-chaos-3",
+      "targetFile": "src/token.ts",
+      "editRange": [
+        15,
+        30
+      ],
+      "replacement": "// Token TTL extension"
+    }
+  ],
+  "expectedMetrics": {
+    "fileCollisions": 1,
+    "dirtyWorkingTree": true,
+    "mainBranchCorrupted": true,
+    "mergeSuccess": false
+  }
+}

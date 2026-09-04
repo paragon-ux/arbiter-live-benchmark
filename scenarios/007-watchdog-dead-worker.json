@@ -1,0 +1,21 @@
+{
+  "id": "007-watchdog-dead-worker",
+  "title": "Zero-Daemon Watchdog Dead PID Lease Recovery",
+  "description": "Worker claims a task and acquires lease. Worker process is killed. Arbiter watchdog checks process.kill(pid, 0), reclaims orphaned lease, and resets task to READY.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "watchdog_recovery",
+  "task": {
+    "id": "task-watchdog-1",
+    "title": "Background telemetry worker"
+  },
+  "worker": {
+    "id": "dead-worker-pid-99999",
+    "simulatedDeadPid": 999999
+  },
+  "expectedMetrics": {
+    "deadPidDetected": true,
+    "leaseReclaimed": true,
+    "taskResetToReady": true,
+    "recoveryTimeMsMax": 10
+  }
+}

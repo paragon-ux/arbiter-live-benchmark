@@ -1,0 +1,13 @@
+{
+  "id": "009-parallel-10-workers",
+  "title": "High-Concurrency Multi-Agent Swarm (10 Workers)",
+  "description": "Stresses SQLite WAL write serialization and parallel Git worktree provisioning across 10 concurrent agents modifying disjoint modules.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "parallel",
+  "workersCount": 10,
+  "expectedMetrics": {
+    "worktreesProvisioned": 10,
+    "conflictsDetected": 0,
+    "mainBranchValid": true
+  }
+}

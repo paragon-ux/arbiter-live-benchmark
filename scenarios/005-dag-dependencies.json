@@ -1,0 +1,106 @@
+{
+  "id": "005-dag-dependencies",
+  "title": "DAG Task Scheduling & Dependency Unblocking",
+  "description": "12-node task dependency DAG with critical path and fan-out/fan-in topology. Evaluates Kahn topological resolution and child unblocking.",
+  "targetRepo": "targets/data-pipeline",
+  "mode": "dag_scheduling",
+  "dag": {
+    "tasks": [
+      {
+        "id": "T-01",
+        "title": "Schema definition",
+        "deps": []
+      },
+      {
+        "id": "T-02",
+        "title": "Extractor implementation",
+        "deps": [
+          "T-01"
+        ]
+      },
+      {
+        "id": "T-03",
+        "title": "Transformer core",
+        "deps": [
+          "T-01"
+        ]
+      },
+      {
+        "id": "T-04",
+        "title": "Sink loader",
+        "deps": [
+          "T-01"
+        ]
+      },
+      {
+        "id": "T-05",
+        "title": "Batch processing pipeline",
+        "deps": [
+          "T-02",
+          "T-03"
+        ]
+      },
+      {
+        "id": "T-06",
+        "title": "Error boundary & DLQ",
+        "deps": [
+          "T-03"
+        ]
+      },
+      {
+        "id": "T-07",
+        "title": "End-to-end integration",
+        "deps": [
+          "T-05",
+          "T-04",
+          "T-06"
+        ]
+      },
+      {
+        "id": "T-08",
+        "title": "Schema unit tests",
+        "deps": [
+          "T-01"
+        ]
+      },
+      {
+        "id": "T-09",
+        "title": "Extractor tests",
+        "deps": [
+          "T-02"
+        ]
+      },
+      {
+        "id": "T-10",
+        "title": "Transformer tests",
+        "deps": [
+          "T-03"
+        ]
+      },
+      {
+        "id": "T-11",
+        "title": "Sink loader tests",
+        "deps": [
+          "T-04"
+        ]
+      },
+      {
+        "id": "T-12",
+        "title": "Full pipeline verification suite",
+        "deps": [
+          "T-07",
+          "T-08",
+          "T-09",
+          "T-10",
+          "T-11"
+        ]
+      }
+    ]
+  },
+  "expectedMetrics": {
+    "totalTasks": 12,
+    "cycleDetected": false,
+    "resolutionTimeMsMax": 5,
+    "topologicalOrderValid": true
+  }
+}

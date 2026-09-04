@@ -1,0 +1,34 @@
+{
+  "id": "004-parallel-arbiter",
+  "title": "Parallel Multi-Agent Arbiter Worktree Swarm",
+  "description": "3 concurrent agents provision isolated ephemeral Git worktrees via Arbiter, stage independent Waymark trajectories, and cleanly merge to main sequentially.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "arbiter_swarm",
+  "tasks": [
+    {
+      "id": "task-auth-split",
+      "title": "Split authenticateUser into verifyPassword",
+      "file": "src/auth.ts",
+      "workerId": "arbiter-worker-1"
+    },
+    {
+      "id": "task-rate-limit",
+      "title": "Add sliding window rate limit on auth",
+      "file": "src/rateLimiter.ts",
+      "workerId": "arbiter-worker-2"
+    },
+    {
+      "id": "task-token-ttl",
+      "title": "Extend token TTL and validation",
+      "file": "src/token.ts",
+      "workerId": "arbiter-worker-3"
+    }
+  ],
+  "expectedMetrics": {
+    "worktreesProvisioned": 3,
+    "worktreesIsolated": true,
+    "conflicts": 0,
+    "mainClean": true,
+    "mergeQueueCompleted": 3
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "arbiter-live-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live empirical multi-agent orchestration benchmark validating Arbiter worktree coordination, Waymark continuity, and fail-closed merge safety.",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "bin": {
+    "arbiter-live-benchmark": "./dist/src/cli/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paragon-ux/arbiter-live-benchmark.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paragon-ux/arbiter-live-benchmark/issues"
+  },
+  "homepage": "https://github.com/paragon-ux/arbiter-live-benchmark#readme",
+  "license": "MIT",
+  "keywords": [
+    "benchmark",
+    "multi-agent",
+    "orchestration",
+    "arbiter",
+    "waymark",
+    "git-worktrees",
+    "agent-continuity",
+    "sqlite",
+    "live-execution",
+    "zero-dependencies"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage \"dist/test/**/*.test.js\"",
+    "public-check": "node scripts/public-check.mjs",
+    "benchmark": "npm run build && node dist/src/cli/index.js --all",
+    "compare": "node scripts/compare-baseline.mjs results/latest.json BASELINE_v1.0.0.json",
+    "verify": "npm run build && node --test \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run benchmark && npm run compare"
+  },
+  "dependencies": {
+    "arbiter": "file:../Arbiter"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  }
+}
+

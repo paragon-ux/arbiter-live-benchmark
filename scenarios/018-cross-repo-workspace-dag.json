@@ -1,0 +1,23 @@
+{
+  "id": "018-cross-repo-workspace-dag",
+  "title": "Monorepo Workspace Cross-Package DAG Resolution",
+  "description": "Evaluates complex diamond dependency resolution across shared packages in a multi-project workspace, coordinating build artifact dependencies before consumer compilation.",
+  "targetRepo": "targets/data-pipeline",
+  "mode": "monorepo_dag",
+  "concurrency": 8,
+  "tasks": [
+    { "id": "pkg-core-types", "deps": [], "workerId": "worker-core" },
+    { "id": "pkg-schema-validator", "deps": ["pkg-core-types"], "workerId": "worker-schema" },
+    { "id": "pkg-crypto-utils", "deps": ["pkg-core-types"], "workerId": "worker-crypto" },
+    { "id": "pkg-auth-service", "deps": ["pkg-schema-validator", "pkg-crypto-utils"], "workerId": "worker-auth" },
+    { "id": "pkg-etl-pipeline", "deps": ["pkg-schema-validator"], "workerId": "worker-etl" },
+    { "id": "pkg-integration-tests", "deps": ["pkg-auth-service", "pkg-etl-pipeline"], "workerId": "worker-test" }
+  ],
+  "expectedMetrics": {
+    "dagNodesTotal": 6,
+    "orderingViolations": 0,
+    "dispatchLatencyMsMax": 2.0,
+    "topologicalResolution": "KAHN_SORT_SUCCESS",
+    "mainClean": true
+  }
+}

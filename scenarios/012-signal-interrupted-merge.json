@@ -1,0 +1,13 @@
+{
+  "id": "012-signal-interrupted-merge",
+  "title": "Signal-Interrupted Merge Fail-Closed Rollback (SIGTERM)",
+  "description": "Sends an OS SIGTERM signal mid-way through a sequential branch merge, asserting fail-closed rollback (git merge --abort), zero unmerged files, and quarantine isolation.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "merge",
+  "interruptSignal": "SIGTERM",
+  "expectedMetrics": {
+    "mainBranchValid": true,
+    "quarantineActivated": true,
+    "rollbackClean": true
+  }
+}

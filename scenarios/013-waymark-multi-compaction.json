@@ -1,0 +1,12 @@
+{
+  "id": "013-waymark-multi-compaction",
+  "title": "Multi-Compaction Trajectory Stability (3 Cycles)",
+  "description": "Simulates three sequential context compactions during an extended investigation, asserting SHA-256 hash stability of verified code hops and consistent >75% token reduction on every resume cycle.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "continuity",
+  "compactionCycles": 3,
+  "expectedMetrics": {
+    "hashStable": true,
+    "averageSavingsPercent": 78
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "id": "002-single-agent-waymark",
+  "title": "Single Agent Waymark In-Flight Continuity",
+  "description": "Single agent tracing a bug with Waymark in-flight trajectory ledger. Compaction resumes verified breadcrumbs in <216 tokens.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "waymark",
+  "task": {
+    "id": "task-auth-002",
+    "title": "Audit token validation and expiration handling with Waymark",
+    "files": [
+      "src/auth.ts",
+      "src/token.ts"
+    ]
+  },
+  "workers": [
+    {
+      "id": "worker-waymark-1",
+      "iterations": 5,
+      "compactionAtStep": 3,
+      "actions": [
+        {
+          "type": "waymark_begin",
+          "question": "Audit token validation"
+        },
+        {
+          "type": "read",
+          "path": "src/auth.ts",
+          "lines": [
+            35,
+            55
+          ],
+          "tokens": 420
+        },
+        {
+          "type": "waymark_note",
+          "path": "src/auth.ts",
+          "range": [
+            35,
+            55
+          ],
+          "label": "auth-entry",
+          "inference": "authenticateUser calls issueToken"
+        },
+        {
+          "type": "compaction_event"
+        },
+        {
+          "type": "waymark_resume",
+          "detailLevel": "compact",
+          "resumeTokens": 180
+        },
+        {
+          "type": "edit",
+          "path": "src/token.ts",
+          "lines": [
+            25,
+            35
+          ],
+          "tokens": 260
+        },
+        {
+          "type": "waymark_complete",
+          "answer": "Token expiration validated and hardened"
+        }
+      ]
+    }
+  ],
+  "expectedMetrics": {
+    "maxTokens": 2200,
+    "waymarkResumeTokens": 180,
+    "continuitySavingsPercent": 72
+  }
+}

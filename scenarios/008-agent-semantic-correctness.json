@@ -1,0 +1,18 @@
+{
+  "id": "008-agent-semantic-correctness",
+  "title": "Agent Semantic Correctness & Typecheck (Refactoring)",
+  "description": "Validates that an agent refactoring task not only isolates workspace state but passes full TypeScript compilation and 100% of unit tests with zero regressions.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "refactor",
+  "task": {
+    "targetFile": "src/auth.ts",
+    "goal": "Split token verification logic and export helper",
+    "expectedTypeErrors": 0,
+    "expectedTestPassRate": 100
+  },
+  "expectedMetrics": {
+    "accuracyPercent": 100,
+    "typeSafetyPassed": true,
+    "testsPassed": true
+  }
+}

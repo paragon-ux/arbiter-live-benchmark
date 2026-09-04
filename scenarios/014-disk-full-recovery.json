@@ -1,0 +1,13 @@
+{
+  "id": "014-disk-full-recovery",
+  "title": "Disk-Full (ENOSPC) Fault-Tolerant Transaction Rollback",
+  "description": "Simulates an ENOSPC disk-full error during an SQLite checkpoint write, asserting transactional rollback, zero orphaned lock files, and clean task lease release.",
+  "targetRepo": "targets/data-pipeline",
+  "mode": "fault_injection",
+  "faultType": "ENOSPC",
+  "expectedMetrics": {
+    "transactionRolledBack": true,
+    "orphanLocksRemaining": 0,
+    "mainBranchValid": true
+  }
+}

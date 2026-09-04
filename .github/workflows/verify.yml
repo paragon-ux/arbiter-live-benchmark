@@ -1,0 +1,58 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22.x]
+    steps:
+      - name: Check out Arbiter sibling dependency
+        uses: actions/checkout@v4
+        with:
+          repository: paragon-ux/Arbiter
+          path: Arbiter
+
+      - name: Check out live benchmark source
+        uses: actions/checkout@v4
+        with:
+          path: arbiter-live-benchmark
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Build Arbiter sibling
+        working-directory: Arbiter
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install benchmark from lockfile
+        working-directory: arbiter-live-benchmark
+        run: npm ci
+
+      - name: Configure Git identity for tests
+        working-directory: arbiter-live-benchmark
+        run: |
+          git config --global user.name "CI Agent"
+          git config --global user.email "ci@arbiter.local"
+
+      - name: Verify build, tests, public hygiene, and benchmarks
+        working-directory: arbiter-live-benchmark
+        run: npm run verify
+
+      - name: Check native test coverage
+        working-directory: arbiter-live-benchmark
+        run: npm run test:coverage

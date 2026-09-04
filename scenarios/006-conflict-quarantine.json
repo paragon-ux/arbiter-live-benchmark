@@ -1,0 +1,36 @@
+{
+  "id": "006-conflict-quarantine",
+  "title": "Merge Conflict Fail-Closed Rollback & Quarantine",
+  "description": "2 agents in separate worktrees modify overlapping lines in auth.ts. Arbiter cleanly aborts git merge, preserves pristine main, and isolates worktree in CONFLICT.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "conflict_quarantine",
+  "tasks": [
+    {
+      "id": "task-branch-A",
+      "branch": "arbiter/task-branch-A",
+      "file": "src/auth.ts",
+      "editRange": [
+        42,
+        58
+      ],
+      "content": "// Branch A edits on lines 42-58"
+    },
+    {
+      "id": "task-branch-B",
+      "branch": "arbiter/task-branch-B",
+      "file": "src/auth.ts",
+      "editRange": [
+        50,
+        65
+      ],
+      "content": "// Branch B colliding edits on lines 50-65"
+    }
+  ],
+  "expectedMetrics": {
+    "conflictDetected": true,
+    "rollbackExecuted": true,
+    "mainPristine": true,
+    "quarantinedTaskId": "task-branch-B",
+    "quarantineStatus": "CONFLICT"
+  }
+}

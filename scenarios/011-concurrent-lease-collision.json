@@ -1,0 +1,13 @@
+{
+  "id": "011-concurrent-lease-collision",
+  "title": "Concurrent Task Lease Collision & EAGAIN Backoff",
+  "description": "Simulates two workers racing simultaneously to claim the exact same task lease, asserting atomic acquisition for exactly one worker and deterministic EAGAIN retry backoff for the second.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "lease",
+  "targetTaskId": "task-claim-race-42",
+  "expectedMetrics": {
+    "leaseAcquiredCount": 1,
+    "leaseRejectedCount": 1,
+    "collisionHandled": true
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "id": "001-single-agent-cold",
+  "title": "Single Agent Cold Exploration (Baseline)",
+  "description": "Single agent tracing a bug across multi-file auth service without Waymark continuity. Compaction forces full whole-codebase re-read.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "cold",
+  "task": {
+    "id": "task-auth-001",
+    "title": "Audit token validation and expiration handling",
+    "files": [
+      "src/auth.ts",
+      "src/token.ts",
+      "src/errors.ts"
+    ]
+  },
+  "workers": [
+    {
+      "id": "worker-cold-1",
+      "iterations": 6,
+      "compactionAtStep": 3,
+      "actions": [
+        {
+          "type": "read",
+          "path": "src/auth.ts",
+          "lines": [
+            1,
+            40
+          ],
+          "tokens": 820
+        },
+        {
+          "type": "read",
+          "path": "src/token.ts",
+          "lines": [
+            1,
+            35
+          ],
+          "tokens": 740
+        },
+        {
+          "type": "read",
+          "path": "src/errors.ts",
+          "lines": [
+            1,
+            30
+          ],
+          "tokens": 410
+        },
+        {
+          "type": "compaction_event"
+        },
+        {
+          "type": "cold_reread",
+          "files": [
+            "src/auth.ts",
+            "src/token.ts",
+            "src/errors.ts",
+            "src/crypto.ts",
+            "src/session.ts"
+          ],
+          "tokens": 4800
+        },
+        {
+          "type": "edit",
+          "path": "src/token.ts",
+          "lines": [
+            25,
+            35
+          ],
+          "tokens": 350
+        }
+      ]
+    }
+  ],
+  "expectedMetrics": {
+    "minTokens": 6000,
+    "maxTokens": 8500,
+    "conflicts": 0,
+    "continuitySavingsPercent": 0
+  }
+}
