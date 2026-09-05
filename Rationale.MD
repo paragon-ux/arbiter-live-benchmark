@@ -83,12 +83,12 @@ Scientific evaluation requires **deterministic repeatability** for continuous in
         v                  v                       v                  v
  +---------------+  +---------------+       +---------------+  +---------------+
  | Tier 1:       |  | Tier 1.5:     |       | Tier 2:       |  | Tier 3:       |
- | Deterministic |  | Subprocess    |       | Live Agy      |  | Comparative   |
- | Replay Engine |  | MCP Adapter   |       | Runner        |  | Baselines     |
+ | Live Arbiter  |  | Subprocess    |       | Live Agy      |  | Comparative   |
+ | Engine        |  | MCP Adapter   |       | Runner        |  | Baselines     |
  +-------+-------+  +-------+-------+       +-------+-------+  +-------+-------+
          |                  |                       |                  |
-  Mulberry32 PRNG    OS JSON-RPC stdio       Local CLI ($0)    Docker / Mutex /
-  (<5ms, CI)         (Protocol fidelity)     (Live LLM agent)   Process Pool
+  Live Worktrees     OS JSON-RPC stdio       Local CLI ($0)    Docker / Mutex /
+  & SQLite WAL       (Protocol fidelity)     (Live LLM agent)   Process Pool
 ```
 
 ### Tier 1: Live Arbiter Engine (DeterministicAdapter)

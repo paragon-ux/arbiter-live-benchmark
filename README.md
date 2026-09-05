@@ -178,6 +178,6 @@ node dist/src/cli/index.js --all --json results/benchmark.json
 
 ---
 
-## Zero Runtime Dependencies
+## Runtime Dependencies & Zero-Dependency Core
 
-Arbiter Live Benchmark requires **0 third-party runtime npm dependencies**. It is built exclusively on Node 22 native modules (`node:sqlite`, `node:child_process`, `node:fs`, `node:crypto`) plus the local sibling `arbiter` package.
+Arbiter Live Benchmark relies on `@dqbd/tiktoken` for compiled BPE tokenization, the local sibling `arbiter` package, and Node 22 native modules (`node:sqlite`, `node:child_process`, `node:fs`, `node:crypto`). The core Arbiter library itself maintains strictly 0 third-party runtime dependencies.
