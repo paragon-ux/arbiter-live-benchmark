@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] — 2026-09-05
+
+### Added
+- **Tier 2 Live Frontier Agent Verification (Google Gemini)**:
+  - Added native `AgyAgentAdapter` driving live Google Gemini refactoring tasks via the Antigravity CLI (`agy`).
+  - Added fail-fast validation: `--mode agy` immediately exits 1 with `[AGY_NOT_AVAILABLE]` if the CLI binary is missing, prohibiting silent degradation.
+  - Elevated live verification receipt (47,928 tokens, 39.1s, 100% accuracy, clean merge) to an upfront spotlight in `README.md`, `METHODOLOGY_AND_REVIEWER_FAQ.md`, and `CLAIMS.md`.
+  - Persisted structured execution receipts at `results/latest-agy.json` and `results/latest-agy.md`.
+
+### Fixed
+- **Integration Test Runner Concurrency**:
+  - Enforced `--test-concurrency=1` in `package.json` test runner scripts (`test`, `test:coverage`, `verify`), eliminating inter-suite OS child process and worktree disk thrashing on Windows.
+  - Increased MCP worker session timeout from 30s to 90s in `workerProcess.ts` and `subprocessMcp.ts` to prevent false timeouts under heavy parallel load.
+- **Living Version Alignment**:
+  - Synchronized living manifests, documentation, and claims targets to v2.1.2.
+
 ## [2.1.1] — 2026-09-05
 
 ### Added
