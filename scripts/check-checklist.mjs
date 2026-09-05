@@ -8,12 +8,9 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, '..');
+const rootDir = resolve(import.meta.dirname, '..');
 const candidates = [
   resolve(rootDir, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '2.1.0', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),

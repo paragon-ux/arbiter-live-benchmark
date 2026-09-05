@@ -8,7 +8,7 @@
  * 
  * Sources checked:
  * 1. scenarios/*.json
- * 2. src/harness/adapters/deterministic.ts
+ * 2. src/harness/adapters/subprocessMcp.ts
  * 3. BENCHMARK_AUTHORING.md
  * 4. README.md
  * 5. BASELINE_v2.1.0.json
@@ -19,12 +19,9 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, '..');
+const rootDir = resolve(import.meta.dirname, '..');
 
 function checkHypotheses() {
   const authoringPath = resolve(rootDir, 'docs', 'BENCHMARK_AUTHORING.md');

@@ -2,12 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { execFileSync, spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { countTokens } from './tokens.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = import.meta.dirname;
 const require = createRequire(import.meta.url);
 
 const tscBin = (() => {
@@ -66,22 +64,26 @@ interface JsonRpcMessage {
   error?: Record<string, unknown>;
 }
 
+function makeEarlyFailure(config: WorkerTaskConfig): WorkerProcessOutput {
+  return {
+    pid: process.pid,
+    workerId: config.workerId,
+    taskId: null,
+    worktreePath: null,
+    success: false,
+    typeErrors: 1,
+    unitTestsPassed: 0,
+    unitTestsTotal: 1,
+    stdout: '',
+    stderr: config.failError || 'Deliberate worker failure',
+    tokensMeasured: 0,
+    error: config.failError || 'Deliberate worker failure',
+  };
+}
+
 async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string): Promise<WorkerProcessOutput> {
   if (config.shouldFail && !config.taskId) {
-    return {
-      pid: process.pid,
-      workerId: config.workerId,
-      taskId: null,
-      worktreePath: null,
-      success: false,
-      typeErrors: 1,
-      unitTestsPassed: 0,
-      unitTestsTotal: 1,
-      stdout: '',
-      stderr: config.failError || 'Deliberate worker failure',
-      tokensMeasured: 0,
-      error: config.failError || 'Deliberate worker failure',
-    };
+    return makeEarlyFailure(config);
   }
 
   return new Promise((resolve, reject) => {
@@ -391,20 +393,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
 async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string): Promise<WorkerProcessOutput> {
   if (config.shouldFail && !config.taskId) {
-    return {
-      pid: process.pid,
-      workerId: config.workerId,
-      taskId: null,
-      worktreePath: null,
-      success: false,
-      typeErrors: 1,
-      unitTestsPassed: 0,
-      unitTestsTotal: 1,
-      stdout: '',
-      stderr: config.failError || 'Deliberate worker failure',
-      tokensMeasured: 0,
-      error: config.failError || 'Deliberate worker failure',
-    };
+    return makeEarlyFailure(config);
   }
 
   let tokensMeasured = 0;

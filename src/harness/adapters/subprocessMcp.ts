@@ -2,7 +2,6 @@ import { spawn, execFileSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { BaseScenario, ScenarioResult } from '../types.js';
 import { MetricsCollector } from '../metrics.js';
 import { createTempGitRepo } from '../gitHelper.js';
@@ -17,20 +16,16 @@ import {
   WaymarkSupervisor,
 } from 'arbiter';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = import.meta.dirname;
 const rootDir = path.resolve(__dirname, '../../../..');
 const arbiterCliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
 const arbiterMcpScript = path.resolve(rootDir, '../Arbiter/dist/src/mcp/index.js');
 const workerScript = path.resolve(__dirname, '../workerProcess.js');
-const waymarkCliScript = (() => {
-  const candidates = [
-    path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
-    path.resolve(rootDir, '../../Deepseek-Project/Waymark/dist/src/cli.js'),
-    process.env.WAYMARK_CLI_PATH || '',
-  ];
-  return candidates.find((c) => c && fs.existsSync(c)) || '';
-})();
+const waymarkCliScript = [
+  path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../Deepseek-Project/Waymark/dist/src/cli.js'),
+  process.env.WAYMARK_CLI_PATH || '',
+].find((c) => c && fs.existsSync(c)) || '';
 
 function makeTask(db: ArbiterDatabase, task: {
   id: string;
@@ -41,17 +36,15 @@ function makeTask(db: ArbiterDatabase, task: {
   status?: 'PENDING' | 'READY' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CONFLICT';
 }) {
   return db.insertTask({
-    id: task.id,
-    title: task.title,
-    description: task.description,
-    baseBranch: task.baseBranch || 'main',
-    branch: task.branch || `arbiter/${task.id}`,
-    status: task.status || 'READY',
+    baseBranch: 'main',
+    branch: `arbiter/${task.id}`,
+    status: 'READY',
     worktreePath: null,
     assignedWorkerId: null,
     waymarkTrajectoryId: null,
     resultAnswer: null,
     errorMessage: null,
+    ...task,
   });
 }
 
