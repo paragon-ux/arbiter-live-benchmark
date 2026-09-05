@@ -23,6 +23,12 @@ jobs:
           repository: paragon-ux/Arbiter
           path: Arbiter
 
+      - name: Check out Waymark sibling dependency
+        uses: actions/checkout@v4
+        with:
+          repository: paragon-ux/waymark
+          path: waymark
+
       - name: Check out live benchmark source
         uses: actions/checkout@v4
         with:
@@ -39,6 +45,12 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build Waymark sibling
+        working-directory: waymark
+        run: |
+          npm ci
+          npm run build
+
       - name: Install benchmark from lockfile
         working-directory: arbiter-live-benchmark
         run: npm ci
@@ -51,8 +63,12 @@ jobs:
 
       - name: Verify build, tests, public hygiene, and benchmarks
         working-directory: arbiter-live-benchmark
+        env:
+          WAYMARK_CLI_PATH: ${{ github.workspace }}/waymark/dist/src/cli.js
         run: npm run verify
 
       - name: Check native test coverage
         working-directory: arbiter-live-benchmark
+        env:
+          WAYMARK_CLI_PATH: ${{ github.workspace }}/waymark/dist/src/cli.js
         run: npm run test:coverage

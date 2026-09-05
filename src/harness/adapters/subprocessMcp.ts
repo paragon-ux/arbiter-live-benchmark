@@ -22,10 +22,18 @@ const arbiterCliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js')
 const arbiterMcpScript = path.resolve(rootDir, '../Arbiter/dist/src/mcp/index.js');
 const workerScript = path.resolve(__dirname, '../workerProcess.js');
 const waymarkCliScript = [
+  process.env.WAYMARK_CLI_PATH || '',
+  path.resolve(rootDir, '../waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../Waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../Waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../../Deepseek-Project/Waymark/dist/src/cli.js'),
-  process.env.WAYMARK_CLI_PATH || '',
 ].find((c) => c && fs.existsSync(c)) || '';
+
+if (waymarkCliScript && !process.env.WAYMARK_CLI_PATH) {
+  process.env.WAYMARK_CLI_PATH = waymarkCliScript;
+}
 
 function makeTask(db: ArbiterDatabase, task: {
   id: string;
@@ -236,15 +244,17 @@ export class SubprocessMcpAdapter {
       db.close();
 
       // Initialize real Waymark directory in worktree
-      const waymark = new WaymarkSupervisor();
+      const waymark = new WaymarkSupervisor(waymarkCliScript || undefined);
       waymark.initWorktree(repoPath);
       const trjId = waymark.beginTrajectory(repoPath, 'Investigate auth token verification and session expiration');
 
       const activeFile = path.join(repoPath, '.waymark', 'active.json');
       const trjFile = path.join(repoPath, '.waymark', 'trajectories', `${trjId}.ndjson`);
+      const fallbackFile = path.join(repoPath, '.waymark', 'trajectory.json');
       const activeContent = fs.existsSync(activeFile) ? fs.readFileSync(activeFile, 'utf8') : '';
       const trjContent = fs.existsSync(trjFile) ? fs.readFileSync(trjFile, 'utf8') : '';
-      const trajectoryTokens = countTokens(activeContent + trjContent);
+      const fallbackContent = fs.existsSync(fallbackFile) ? fs.readFileSync(fallbackFile, 'utf8') : '';
+      const trajectoryTokens = countTokens((activeContent + trjContent) || fallbackContent);
 
       const workerOutput = await spawnWorkerSubprocess({
         workerId: 'worker-waymark-1',
