@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scenario 014 relabeled from "Disk-Full (ENOSPC)" to "SQLite Transaction Rollback Recovery" to accurately reflect test scope.
 
 ### Added
+- **Compiled TikToken BPE Tokenizer (`@dqbd/tiktoken`)**: Promoted to production runtime dependency in the benchmark suite. Implemented compiled `cl100k_base` Byte-Pair Encoding in `src/harness/tokens.ts`. Replaced all static and mock token allocations across all 22 scenarios with dynamic BPE counting on actual ASTs, task prompts, git diffs, JSON-RPC stdio payloads, and serialized Waymark trajectory ledgers.
+- **Empirical Token Calibration (`npm run calibrate`)**: Calibrated against 15 source files in target repositories (`microservice-auth` and `data-pipeline`), confirming **0.00% mean and max BPE divergence**.
 - **Native Rust kernel** (`crates/arbiter-kernel`): In-process `libgit2` bindings via N-API for `kernel_checkout`, `kernel_worktree_add`, and `kernel_delete_branch`. Eliminates ~200ms/call Windows `git.exe` spawn overhead.
 - **Native kernel path resolution**: Uses `import.meta.url`-relative resolution instead of `process.cwd()`, fixing silent fallback to CLI when Arbiter is consumed as a dependency.
 - **Memoized merge checkout**: `MergeQueue` tracks `currentCheckedOutBranch` to skip redundant `git checkout main` calls during batch merges.
