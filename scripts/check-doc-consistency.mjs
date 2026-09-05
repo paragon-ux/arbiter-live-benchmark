@@ -130,6 +130,19 @@ function checkScenarios() {
     }
   }
 
+  // 6. Living Documentation Version Parity
+  const pkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf8'));
+  if (!readmeContent.includes(`## Empirical Results Summary (v${pkg.version})`)) {
+    errors.push(`README.md results header does not match package.json version ${pkg.version}`);
+  }
+  if (!readmeContent.includes(`- [Empirical Results Summary (v${pkg.version})]`)) {
+    errors.push(`README.md TOC results link does not match package.json version ${pkg.version}`);
+  }
+  const faqContent = readFileSync(resolve(rootDir, 'docs', 'METHODOLOGY_AND_REVIEWER_FAQ.md'), 'utf8');
+  if (!faqContent.includes(`**Version:** ${pkg.version}`)) {
+    errors.push(`docs/METHODOLOGY_AND_REVIEWER_FAQ.md version header does not match package.json version ${pkg.version}`);
+  }
+
   if (errors.length > 0) {
     console.error(`Document consistency check failed with ${errors.length} errors:`);
     for (const e of errors) console.error(`  - ${e}`);

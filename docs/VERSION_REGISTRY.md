@@ -15,7 +15,7 @@ npm run check:version
 # or: node scripts/bump-version.mjs --check
 
 # Bump suite version atomically across all living targets
-node scripts/bump-version.mjs 2.1.2
+node scripts/bump-version.mjs 2.2.0
 ```
 
 ---
@@ -26,7 +26,12 @@ node scripts/bump-version.mjs 2.1.2
 | :--- | :--- | :--- |
 | [`package.json`](../package.json) | `"version": "X.Y.Z"` | NPM package manifest |
 | [`README.md`](../README.md) | `https://img.shields.io/badge/version-X.Y.Z-blue.svg` | Root README release badge |
+| [`README.md`](../README.md) | `## Empirical Results Summary (vX.Y.Z)` | Results summary section header |
+| [`README.md`](../README.md) | `- [Empirical Results Summary (vX.Y.Z)]` | Results summary table of contents link |
 | [`CLAIMS.md`](../CLAIMS.md) | `**Document Version:** X.Y.Z-PROD` | Production claims registry |
+| [`docs/METHODOLOGY_AND_REVIEWER_FAQ.md`](METHODOLOGY_AND_REVIEWER_FAQ.md) | `**Version:** X.Y.Z` | Methodology document version |
+| [`docs/METHODOLOGY_AND_REVIEWER_FAQ.md`](METHODOLOGY_AND_REVIEWER_FAQ.md) | `#### Authoritative Live Verification Receipt (vX.Y.Z)` | Live verification receipt header |
+| [`docs/VERSION_REGISTRY.md`](VERSION_REGISTRY.md) | `node scripts/bump-version.mjs X.Y.Z` | Version registry example |
 | [`CHANGELOG.md`](../CHANGELOG.md) | `## [X.Y.Z] — YYYY-MM-DD` | Release notes history |
 
 ---

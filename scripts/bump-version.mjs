@@ -35,11 +35,46 @@ export const LIVING_VERSION_TARGETS = [
     extract: (content) => content.match(/badge\/version-([0-9.]+)-blue/)?.[1],
   },
   {
+    name: 'README Results TOC',
+    file: 'README.md',
+    regex: /- \[Empirical Results Summary \(v[0-9.]+\)\]\(#empirical-results-summary-v[0-9.]+\)/,
+    format: (v) => `- [Empirical Results Summary (v${v})](#empirical-results-summary-v${v.replace(/\./g, '')})`,
+    extract: (content) => content.match(/- \[Empirical Results Summary \(v([0-9.]+)\)\]/)?.[1],
+  },
+  {
+    name: 'README Results Section Header',
+    file: 'README.md',
+    regex: /## Empirical Results Summary \(v[0-9.]+\)/,
+    format: (v) => `## Empirical Results Summary (v${v})`,
+    extract: (content) => content.match(/## Empirical Results Summary \(v([0-9.]+)\)/)?.[1],
+  },
+  {
     name: 'CLAIMS Document Header',
     file: 'CLAIMS.md',
     regex: /\*\*Document Version:\*\*\s*[0-9.]+(-PROD)?/,
     format: (v) => `**Document Version:** ${v}-PROD`,
     extract: (content) => content.match(/\*\*Document Version:\*\*\s*([0-9.]+)(?:-PROD)?/)?.[1],
+  },
+  {
+    name: 'Methodology Document Header',
+    file: 'docs/METHODOLOGY_AND_REVIEWER_FAQ.md',
+    regex: /\*\*Version:\*\*\s*[0-9.]+/,
+    format: (v) => `**Version:** ${v}`,
+    extract: (content) => content.match(/\*\*Version:\*\*\s*([0-9.]+)/)?.[1],
+  },
+  {
+    name: 'Methodology Live Verification Receipt Header',
+    file: 'docs/METHODOLOGY_AND_REVIEWER_FAQ.md',
+    regex: /#### Authoritative Live Verification Receipt \(v[0-9.]+\)/,
+    format: (v) => `#### Authoritative Live Verification Receipt (v${v})`,
+    extract: (content) => content.match(/#### Authoritative Live Verification Receipt \(v([0-9.]+)\)/)?.[1],
+  },
+  {
+    name: 'Version Registry CLI Example',
+    file: 'docs/VERSION_REGISTRY.md',
+    regex: /node scripts\/bump-version\.mjs [0-9.]+/,
+    format: (v) => `node scripts/bump-version.mjs ${v}`,
+    extract: (content) => content.match(/node scripts\/bump-version\.mjs ([0-9.]+)/)?.[1],
   },
 ];
 
@@ -62,6 +97,33 @@ if (targetArg === '--check') {
     if (detected !== currentVersion) {
       console.error(`[VERSION DRIFT] ${target.name} (${target.file}): expected ${currentVersion}, found ${detected}`);
       drifts++;
+    }
+  }
+
+  // Scan living documentation files for stale historical version references
+  const livingFilesToScan = [
+    'README.md',
+    'CLAIMS.md',
+    'docs/METHODOLOGY_AND_REVIEWER_FAQ.md',
+    'docs/VERSION_REGISTRY.md'
+  ];
+  for (const relFile of livingFilesToScan) {
+    const fullPath = resolve(rootDir, relFile);
+    const lines = readFileSync(fullPath, 'utf8').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Match patterns like v2.1.0, v2.1.2, etc. that differ from currentVersion
+      const matches = line.matchAll(/\bv?(\d+\.\d+\.\d+)\b/g);
+      for (const m of matches) {
+        const found = m[1];
+        // Skip Node engine version (>=22), baseline schema versions, etc.
+        if (found !== currentVersion && !found.startsWith('22.') && !found.startsWith('0.') && !line.includes('img.shields.io') && !line.includes('github.com') && !line.includes('BASELINE_v')) {
+          const lower = line.toLowerCase();
+          if (!lower.includes('legacy') && !lower.includes('historical') && !lower.includes('sealed') && !line.includes('docs/')) {
+            console.warn(`[WARN: POTENTIAL DRIFT] ${relFile}:${i + 1}: Found version ${found} (current: ${currentVersion}): "${line.trim()}"`);
+          }
+        }
+      }
     }
   }
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] — 2026-09-05
+
+### Added
+- **Automated Living Documentation Version Parity**: Expanded `scripts/bump-version.mjs` and `scripts/check-doc-consistency.mjs` to validate and synchronize living documentation versions across `README.md` (badges, table of contents links, empirical summary headers), `docs/METHODOLOGY_AND_REVIEWER_FAQ.md`, and `docs/VERSION_REGISTRY.md`.
+- **Suite-Wide v2.2.0 Synchronization**: Full parity with Arbiter v2.2.0 Architecture Suite, including Waymark streaming continuity bridge, fail-soft post-merge Capn hooks, and property/chaos test suites.
+- **Anti-Drift Verification**: Integrated automated living doc scans into `--check` to eliminate stale version references across living documentation.
+
 ## [2.1.3] — 2026-09-05
 
 - Version bump to 2.1.3.
