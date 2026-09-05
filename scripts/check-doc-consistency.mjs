@@ -27,8 +27,8 @@ const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
 function checkHypotheses() {
-  const authoringPath = resolve(rootDir, 'BENCHMARK_AUTHORING.md');
-  const rationalePath = resolve(rootDir, 'Rationale.MD');
+  const authoringPath = resolve(rootDir, 'docs', 'BENCHMARK_AUTHORING.md');
+  const rationalePath = resolve(rootDir, 'docs', 'Rationale.MD');
 
   const authoringContent = readFileSync(authoringPath, 'utf8');
   const rationaleContent = readFileSync(rationalePath, 'utf8');
@@ -64,7 +64,7 @@ function checkScenarios() {
   const sources = [
     'scenarios/*.json',
     'src/harness/adapters/deterministic.ts',
-    'BENCHMARK_AUTHORING.md',
+    'docs/BENCHMARK_AUTHORING.md',
     'README.md',
     'BASELINE_v2.1.0.json'
   ];
@@ -100,8 +100,8 @@ function checkScenarios() {
     }
   }
 
-  // 3. BENCHMARK_AUTHORING.md
-  const authoringContent = readFileSync(resolve(rootDir, 'BENCHMARK_AUTHORING.md'), 'utf8');
+  // 3. docs/BENCHMARK_AUTHORING.md
+  const authoringContent = readFileSync(resolve(rootDir, 'docs', 'BENCHMARK_AUTHORING.md'), 'utf8');
   const authoringTitles = new Map();
   const authMatches = authoringContent.matchAll(/\|\s*\*\*`(\d{3}-[a-z0-9-]+)`\*\*\s*\|\s*([^|]+)\|/g);
   for (const m of authMatches) {

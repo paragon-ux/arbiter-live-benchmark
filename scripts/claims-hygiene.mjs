@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * Claims & Anti-Mock Hygiene Linter (arbiter-live-benchmark)
@@ -22,8 +22,8 @@ const BANNED_PATTERNS = [
 
 const TARGET_FILES = [
   'README.md',
-  'BENCHMARK_AUTHORING.md',
-  'Rationale.MD',
+  'docs/BENCHMARK_AUTHORING.md',
+  'docs/Rationale.MD',
   'CLAIMS.md'
 ];
 

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] — 2026-09-05 ("Remediation & Anti-Regression Hardening")
 
 ### Added
-- **Dedicated 2.1.0 Reports Hub (`2.1.0/`)**:
+- **Dedicated 2.1.0 Reports Hub (`docs/2.1.0/`)**:
   - `REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md`: Complete 20-item sequential remediation checklist verified against live codebase.
   - `REMEDIATION_WALKTHROUGH_v2.1.0.md`: Full architectural walkthrough and ponytail optimization record.
   - `DISCREPANCY_AUDIT_REPORT_v2.1.0.md`: Comprehensive reconciliation across Arbiter, arbiter-live-benchmark, and arbiter-benchmark.
