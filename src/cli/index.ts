@@ -12,7 +12,7 @@ const rootDir = path.resolve(__dirname, '../../..');
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let scenarioId: string | undefined;
-  let tier: ExecutionTier = 'deterministic';
+  let tier: ExecutionTier = 'subprocess_mcp';
   let trials = 1;
   let emitJson = false;
   let verbose = false;
@@ -24,12 +24,10 @@ async function main(): Promise<void> {
       scenarioId = args[++i];
     } else if (arg === '--mode' && args[i + 1]) {
       const m = args[++i];
-      if (m === 'agy') tier = 'agy';
-      else if (m === 'subprocess_mcp' || m === 'subprocess') tier = 'subprocess_mcp';
-      else if (m === 'naive_mutex') tier = 'naive_mutex';
+      if (m === 'naive_mutex') tier = 'naive_mutex';
       else if (m === 'process_pool') tier = 'process_pool';
       else if (m === 'docker') tier = 'docker';
-      else tier = 'deterministic';
+      else tier = 'subprocess_mcp';
     } else if (arg === '--trials' && args[i + 1]) {
       trials = Math.max(1, parseInt(args[++i], 10) || 1);
     } else if (arg === '--verbose' || arg === '-v') {

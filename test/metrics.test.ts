@@ -52,7 +52,7 @@ describe('MetricsCollector Suite', () => {
     const mockNWayResult: import('../src/harness/types.js').TypedScenarioResult<'019-n-way-merge-conflicts'> = {
       scenarioId: '019-n-way-merge-conflicts',
       title: 'N-Way Merge Conflicts',
-      tier: 'deterministic',
+      tier: 'subprocess_mcp',
       passed: true,
       metrics: {
         durationMs: 120.5,

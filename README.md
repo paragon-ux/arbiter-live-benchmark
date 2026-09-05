@@ -31,28 +31,28 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 <!-- BEGIN:RESULTS_TABLE -->
 | Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Cold Exploration Baseline | ~961ms | 2,500ms | 7,249 | 0 | 85% | ✅ PASS |
-| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~362ms | 1,000ms | **540** | 0 | **95%** | ✅ PASS |
-| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~91.2ms | 200.0ms | N/A | 1 (0 resolved) | 55% | ✅ PASS |
-| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~2,303ms | 8,000ms | 1,362 | 0 | **100%** | ✅ PASS |
-| **`005-dag-dependencies`** | 12-Task Topological DAG | ~347ms | 600.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~1,753ms | 4,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
-| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~218ms | 500.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`008-agent-semantic-correctness`** | Typecheck & Test Pass Rate | ~790ms | 2,000ms | 449 | 0 | **100%** | ✅ PASS |
-| **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~10,328ms | 25,000ms | 4,860 | 0 | **100%** | ✅ PASS |
-| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~91.5ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`011-concurrent-lease-collision`** | Atomic CAS Lease & Unique Index | ~116ms | 300.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`012-signal-interrupted-merge`** | Active Merge Rollback | ~1,008ms | 2,500ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
-| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~7.7ms | 50.0ms | 213 | 0 | **99%** | ✅ PASS |
-| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | ~89.9ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`015-docker-isolated-overhead`** | Host Process/Docker Overhead | ~266ms | 1,200ms | 1,011 | 0 | **98%** | ✅ PASS |
-| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~38.8ms | 150.0ms | 1,116 | 2 (0 resolved) | 58% | ✅ PASS |
-| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~67,758ms | 120,000ms | 21,450 | 0 | **98%** | ✅ PASS |
-| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~187ms | 500.0ms | 784 | 0 | **100%** | ✅ PASS |
-| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~4,329ms | 12,000ms | 1,716 | 3 (3 resolved) | **98%** | ✅ PASS |
-| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~1,286ms | 3,000ms | 562 | 0 | **100%** | ✅ PASS |
-| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,014ms | 2,500ms | 1,043 | 0 | **100%** | ✅ PASS |
-| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~39.9ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`001-single-agent-cold`** | Cold Exploration Baseline | ~3,641ms | 2,500ms | 14,166 | 0 | **100%** | ✅ PASS |
+| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~4,850ms | 1,000ms | **744** | 0 | **100%** | ✅ PASS |
+| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~2,325ms | 200.0ms | N/A | 1 (0 resolved) | 50% | ✅ PASS |
+| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~9,647ms | 8,000ms | 1,633 | 0 | **100%** | ✅ PASS |
+| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3,304ms | 600.0ms | 535 | 0 | **100%** | ✅ PASS |
+| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~7,906ms | 4,000ms | 1,046 | 1 (1 resolved) | **100%** | ✅ PASS |
+| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~2,234ms | 500.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`008-agent-semantic-correctness`** | Typecheck & Test Pass Rate | ~7,510ms | 2,000ms | 744 | 0 | **100%** | ✅ PASS |
+| **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~26,107ms | 25,000ms | 5,656 | 0 | **100%** | ✅ PASS |
+| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~1,009ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`011-concurrent-lease-collision`** | Atomic CAS Lease & Unique Index | ~8,275ms | 300.0ms | 735 | 0 | **100%** | ✅ PASS |
+| **`012-signal-interrupted-merge`** | Active Merge Rollback | ~3,588ms | 2,500ms | 536 | 0 | **100%** | ✅ PASS |
+| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~6,511ms | 50.0ms | 28 | 0 | **100%** | ✅ PASS |
+| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | ~102ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`015-docker-isolated-overhead`** | Host Process/Docker Overhead | ~1,604ms | 1,200ms | N/A | 0 | **100%** | ✅ PASS |
+| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~82.9ms | 150.0ms | N/A | 1 (0 resolved) | 50% | ✅ PASS |
+| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~41,493ms | 120,000ms | 8,602 | 0 | **100%** | ✅ PASS |
+| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~189ms | 500.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~9,048ms | 12,000ms | 1,606 | 0 | **100%** | ✅ PASS |
+| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~5,177ms | 3,000ms | 547 | 0 | **100%** | ✅ PASS |
+| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,169ms | 2,500ms | 946 | 0 | **100%** | ✅ PASS |
+| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~2,391ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
 <!-- END:RESULTS_TABLE -->
 
 **Total Suite Duration:** ~105s (live Git worktrees & on-disk SQLite WAL) | **Memory Heap:** ~6.6 MB | **Tokenizer:** Compiled @dqbd/tiktoken cl100k_base BPE

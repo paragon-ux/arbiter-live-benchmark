@@ -1,5 +1,6 @@
 import { BaseScenario, ScenarioResult } from '../types.js';
 import { createTempGitRepo } from '../gitHelper.js';
+import { countTokens } from '../tokens.js';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import path from 'node:path';
 /**
  * ProcessPoolAdapter — Tier 3 Comparative Process Pool Baseline
  * 
- * Executes live worker process-pool operations without filesystem worktree isolation.
+ * Executes live worker operations without filesystem worktree isolation.
  * Workers run concurrently against a single shared Git checkout,
  * producing real index lock collisions (.git/index.lock) and unisolated dirty writes.
  */
@@ -18,19 +19,24 @@ export class ProcessPoolAdapter {
 
     const { repoPath, cleanup } = createTempGitRepo();
     let lockContentionCount = 0;
+    let successfulCommits = 0;
+    let accumulatedContent = '';
 
     try {
-      if (concurrency > 2) {
+      if (concurrency > 1) {
         // Concurrently run worker operations against a single shared git checkout
         // Demonstrates real index lock contention (.git/index.lock)
         const workers = Array.from({ length: concurrency }, (_, i) => i + 1);
         await Promise.all(
           workers.map(async (worker) => {
             const workerFile = path.join(repoPath, `worker_${worker}.txt`);
-            fs.writeFileSync(workerFile, `Worker ${worker} write at ${Date.now()}\n`, 'utf8');
+            const content = `Worker ${worker} write at ${Date.now()}\nPayload: ${'x'.repeat(128)}\n`;
+            accumulatedContent += content;
+            fs.writeFileSync(workerFile, content, 'utf8');
             try {
               execFileSync('git', ['add', `worker_${worker}.txt`], { cwd: repoPath, windowsHide: true, stdio: 'pipe' });
               execFileSync('git', ['commit', '-m', `Worker ${worker} commit`], { cwd: repoPath, windowsHide: true, stdio: 'pipe' });
+              successfulCommits++;
             } catch (err: unknown) {
               const msg = String(err);
               if (msg.includes('index.lock') || msg.includes('lock') || msg.includes('fatal') || msg.includes('File exists')) {
@@ -39,15 +45,15 @@ export class ProcessPoolAdapter {
             }
           })
         );
-        if (lockContentionCount === 0 && concurrency > 2) {
-          lockContentionCount = 1;
-        }
       }
 
-      const isConflict = scenario.id.includes('conflict') || scenario.id.includes('chaos') || scenario.id.includes('no-isolation');
-      const mainBranchValid = !isConflict && concurrency <= 3 && lockContentionCount === 0;
-      const accuracy = mainBranchValid ? 80 : 50;
+      const statusOutput = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath, windowsHide: true, encoding: 'utf8' });
+      accumulatedContent += statusOutput;
 
+      const isConflict = scenario.id.includes('conflict') || scenario.id.includes('chaos') || scenario.id.includes('no-isolation');
+      const mainBranchValid = !isConflict && lockContentionCount === 0 && statusOutput.trim() === '';
+      const accuracy = concurrency > 0 ? Math.round((successfulCommits / concurrency) * 100) : 0;
+      const tokensTotal = countTokens(accumulatedContent);
       const durationMs = performance.now() - startTime;
 
       return {
@@ -57,10 +63,10 @@ export class ProcessPoolAdapter {
         passed: mainBranchValid,
         metrics: {
           durationMs: Number(durationMs.toFixed(2)),
-          tokensTotal: 2200,
+          tokensTotal,
           worktreesProvisioned: 0,
           worktreesIsolated: false,
-          conflictsDetected: isConflict ? 1 : 0,
+          conflictsDetected: isConflict || lockContentionCount > 0 ? 1 : 0,
           conflictsResolved: 0,
           mainBranchValid,
           accuracyPercent: accuracy,
@@ -68,7 +74,8 @@ export class ProcessPoolAdapter {
           details: {
             coordinationStrategy: 'PROCESS_POOL_SHARED_WORKTREE',
             gitIndexLockCollisions: lockContentionCount,
-            dirtyWorkingTree: !mainBranchValid
+            successfulCommits,
+            dirtyWorkingTree: statusOutput.trim() !== '',
           }
         }
       };
@@ -77,3 +84,4 @@ export class ProcessPoolAdapter {
     }
   }
 }
+

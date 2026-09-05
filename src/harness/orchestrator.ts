@@ -1,18 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { BaseScenario, BenchmarkSummary, ExecutionTier, ScenarioResult } from './types.js';
-import { DeterministicAdapter } from './adapters/deterministic.js';
 import { SubprocessMcpAdapter } from './adapters/subprocessMcp.js';
-import { AgyRunnerAdapter } from './adapters/agyRunner.js';
 import { NaiveMutexAdapter } from './adapters/naiveMutex.js';
 import { ProcessPoolAdapter } from './adapters/processPool.js';
 import { DockerIsolatedAdapter } from './adapters/dockerIsolated.js';
 import { computeStatisticalMetrics, estimateMemoryUsage } from './metrics.js';
 
 export class BenchmarkOrchestrator {
-  private deterministicAdapter = new DeterministicAdapter();
   private subprocessMcpAdapter = new SubprocessMcpAdapter();
-  private agyAdapter = new AgyRunnerAdapter();
   private naiveMutexAdapter = new NaiveMutexAdapter();
   private processPoolAdapter = new ProcessPoolAdapter();
   private dockerIsolatedAdapter = new DockerIsolatedAdapter();
@@ -34,7 +30,7 @@ export class BenchmarkOrchestrator {
 
   async runSuite(
     scenarios: BaseScenario[],
-    tier: ExecutionTier = 'deterministic',
+    tier: ExecutionTier = 'subprocess_mcp',
     trials: number = 1,
     options: { verbose?: boolean; timeoutMs?: number } = {}
   ): Promise<BenchmarkSummary> {
@@ -59,12 +55,10 @@ export class BenchmarkOrchestrator {
         });
 
         const executeAdapter = async (): Promise<ScenarioResult> => {
-          if (tier === 'agy') return this.agyAdapter.execute(scenario);
-          if (tier === 'subprocess_mcp') return this.subprocessMcpAdapter.execute(scenario);
           if (tier === 'naive_mutex') return this.naiveMutexAdapter.execute(scenario);
           if (tier === 'process_pool') return this.processPoolAdapter.execute(scenario);
           if (tier === 'docker') return this.dockerIsolatedAdapter.execute(scenario);
-          return this.deterministicAdapter.execute(scenario);
+          return this.subprocessMcpAdapter.execute(scenario);
         };
 
         let currentResult: ScenarioResult;

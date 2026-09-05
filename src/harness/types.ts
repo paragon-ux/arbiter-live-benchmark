@@ -1,4 +1,4 @@
-export type ExecutionTier = 'deterministic' | 'subprocess_mcp' | 'agy' | 'naive_mutex' | 'process_pool' | 'docker';
+export type ExecutionTier = 'subprocess_mcp' | 'naive_mutex' | 'process_pool' | 'docker';
 
 export interface BaseScenario {
   id: string;

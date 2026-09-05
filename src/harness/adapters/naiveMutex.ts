@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { BaseScenario, ScenarioResult } from '../types.js';
+import { countTokens } from '../tokens.js';
 
 /**
  * NaiveMutexAdapter — Tier 3 Comparative Negative Baseline
@@ -16,6 +17,7 @@ export class NaiveMutexAdapter {
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'naive-mutex-live-'));
     let contentionCount = 0;
+    let acquiredCount = 0;
     let totalWaitMs = 0;
 
     try {
@@ -34,6 +36,7 @@ export class NaiveMutexAdapter {
           try {
             fs.writeFileSync(lockFile, `worker-${worker}`, { flag: 'wx' });
             acquired = true;
+            acquiredCount++;
           } catch {
             contentionCount++;
             retries++;
@@ -43,21 +46,26 @@ export class NaiveMutexAdapter {
 
         totalWaitMs += (performance.now() - workerStart);
 
-        // Modify shared file
-        fs.appendFileSync(targetFile, `// Worker ${worker} write\nexport const W${worker} = ${worker};\n`);
+        if (acquired) {
+          // Modify shared file
+          fs.appendFileSync(targetFile, `// Worker ${worker} write\nexport const W${worker} = ${worker};\n`);
 
-        // Hold lock briefly to generate realistic concurrency pressure
-        await new Promise((r) => setTimeout(r, 5));
+          // Hold lock briefly to generate realistic concurrency pressure
+          await new Promise((r) => setTimeout(r, 5));
 
-        // Release lock
-        try { fs.unlinkSync(lockFile); } catch {}
+          // Release lock
+          try { fs.unlinkSync(lockFile); } catch {}
+        }
       }));
+
+      const finalCode = fs.readFileSync(targetFile, 'utf8');
+      const tokensTotal = countTokens(finalCode);
 
       const isConflictScenario = scenario.id.includes('conflict') || scenario.id.includes('chaos') || scenario.id.includes('mutex') || scenario.id.includes('collision');
       const conflictsDetected = contentionCount;
       const conflictsResolved = 0; // Naive mutex lacks fail-closed rollback
-      const mainBranchValid = !isConflictScenario;
-      const accuracy = contentionCount > 0 ? Math.max(30, Math.min(85, Math.round(100 - (contentionCount * 7)))) : 85;
+      const mainBranchValid = !isConflictScenario && contentionCount === 0;
+      const accuracy = concurrency > 0 ? Math.round((acquiredCount / concurrency) * 100) : 0;
 
       const durationMs = performance.now() - startTime;
 
@@ -65,10 +73,10 @@ export class NaiveMutexAdapter {
         scenarioId: scenario.id,
         title: scenario.title,
         tier: 'naive_mutex',
-        passed: !isConflictScenario,
+        passed: !isConflictScenario && acquiredCount === concurrency,
         metrics: {
           durationMs: Number(durationMs.toFixed(2)),
-          tokensTotal: 2500,
+          tokensTotal,
           worktreesProvisioned: 0,
           worktreesIsolated: false,
           conflictsDetected,
@@ -90,3 +98,4 @@ export class NaiveMutexAdapter {
     }
   }
 }
+

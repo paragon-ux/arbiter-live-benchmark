@@ -182,14 +182,14 @@ Every checklist item below must satisfy four sequential gates before being marke
 ---
 
 ### [SEQ-09] Canonical Scenario 014 Naming Everywhere
-- **Scope:** `arbiter-live-benchmark` (`scenarios/014-disk-full-recovery.json`, `src/harness/adapters/deterministic.ts`, `BENCHMARK_AUTHORING.md`, `README.md`, `BASELINE_v2.0.0.json`)
+- **Scope:** `arbiter-live-benchmark` (`scenarios/014-disk-full-recovery.json`, `src/harness/adapters/subprocessMcp.ts`, `docs/BENCHMARK_AUTHORING.md`, `README.md`, `BASELINE_v2.1.0.json`)
 - **Requirement:** Scenario 014 must use the single canonical title: **`SQLite Transaction Rollback Recovery`** across all files. Zero instances of "Disk-Full" or "ENOSPC" allowed in active documentation or scenario title fields.
 - **Verification Command:**
   ```bash
   cd arbiter-live-benchmark
   node -e "
-    const b = require('./BASELINE_v2.0.0.json');
-    const s014 = b.scenarios.find(s => s.scenarioId === '014-disk-full-recovery');
+    const b = require('./BASELINE_v2.1.0.json');
+    const s014 = b.results.find(s => s.scenarioId === '014-disk-full-recovery');
     if (s014.title !== 'SQLite Transaction Rollback Recovery') throw new Error('Mismatched title: ' + s014.title);
     console.log('SCENARIO_014_CANONICAL_TITLE_CONFIRMED');
   "
@@ -198,19 +198,19 @@ Every checklist item below must satisfy four sequential gates before being marke
   ```
   SCENARIO_014_CANONICAL_TITLE_CONFIRMED
   ```
-- [x] **Status:** VERIFIED. Scenario 014 renamed to `SQLite Transaction Rollback Recovery` across `scenarios/014-disk-full-recovery.json`, `BASELINE_v2.0.0.json`, `BENCHMARK_AUTHORING.md`, and `README.md`.
+- [x] **Status:** VERIFIED. Scenario 014 renamed to `SQLite Transaction Rollback Recovery` across `scenarios/014-disk-full-recovery.json`, `BASELINE_v2.1.0.json`, `docs/BENCHMARK_AUTHORING.md`, and `README.md`.
 
 ---
 
 ### [SEQ-10] Scenario 015 Measurement Source Attribution
-- **Scope:** `arbiter-live-benchmark` (`src/harness/adapters/dockerIsolated.ts`, `BASELINE_v2.0.0.json`)
+- **Scope:** `arbiter-live-benchmark` (`src/harness/adapters/dockerIsolated.ts`, `BASELINE_v2.1.0.json`)
 - **Requirement:** Scenario 015 output must always include `measurementSource: "LIVE_MEASUREMENT" | "CALIBRATED_REFERENCE"`. If Docker daemon is unavailable, durationMs must be calibrated reference and clearly attributed without claiming live daemon execution.
 - **Verification Command:**
   ```bash
   cd arbiter-live-benchmark
   node -e "
-    const b = require('./BASELINE_v2.0.0.json');
-    const s015 = b.scenarios.find(s => s.scenarioId === '015-docker-isolated-overhead');
+    const b = require('./BASELINE_v2.1.0.json');
+    const s015 = b.results.find(s => s.scenarioId === '015-docker-isolated-overhead');
     const src = s015.metrics.details.measurementSource || (s015.metrics.details.measuredEmpirical ? 'LIVE_MEASUREMENT' : 'CALIBRATED_REFERENCE');
     console.log('SOURCE=' + src);
   "
@@ -224,7 +224,7 @@ Every checklist item below must satisfy four sequential gates before being marke
 ---
 
 ### [SEQ-11] Eliminate Dead PRNG (Mulberry32) and Replay Prose
-- **Scope:** `arbiter-live-benchmark` (`BENCHMARK_AUTHORING.md`, `Rationale.MD`, `src/harness/adapters/deterministic.ts`)
+- **Scope:** `arbiter-live-benchmark` (`docs/BENCHMARK_AUTHORING.md`, `docs/Rationale.MD`, `src/harness/adapters/subprocessMcp.ts`)
 - **Requirement:**
   1. Remove all instructions claiming scenarios use `Mulberry32` PRNG or `SeededRNG`. Scenarios use real `performance.now()` wall-clock timing and live Git operations.
   2. Remove dead `SeededRNG` class from `deterministic.ts`.
@@ -232,7 +232,7 @@ Every checklist item below must satisfy four sequential gates before being marke
 - **Verification Command:**
   ```bash
   cd arbiter-live-benchmark
-  git grep -i "Mulberry32" -- BENCHMARK_AUTHORING.md Rationale.MD src/
+  git grep -i "Mulberry32" -- docs/BENCHMARK_AUTHORING.md docs/Rationale.MD src/
   ```
 - **Expected Output:**
   ```
@@ -245,7 +245,7 @@ Every checklist item below must satisfy four sequential gates before being marke
 ## Phase 4: Single Source of Truth & Documentation Synchronization
 
 ### [SEQ-12] Canonical H1–H16 Hypothesis Correlation Matrix
-- **Scope:** `arbiter-live-benchmark` (`BENCHMARK_AUTHORING.md`, `Rationale.MD`)
+- **Scope:** `arbiter-live-benchmark` (`docs/BENCHMARK_AUTHORING.md`, `docs/Rationale.MD`)
 - **Requirement:** Keep `BENCHMARK_AUTHORING.md` §5 as the canonical H1–H16 matrix. In `Rationale.MD`, ensure hypothesis titles match word-for-word or replace with a direct pointer.
 - **Verification Command:**
   ```bash
@@ -262,7 +262,7 @@ Every checklist item below must satisfy four sequential gates before being marke
 ### [SEQ-13] Automated Results Table Generator
 - **Scope:** `arbiter-live-benchmark` (`scripts/generate-readme-table.mjs`, `README.md`)
 - **Requirement:**
-  1. Implement `scripts/generate-readme-table.mjs` which reads `BASELINE_v2.0.0.json` and renders the markdown table between `<!-- BEGIN:RESULTS_TABLE -->` and `<!-- END:RESULTS_TABLE -->`.
+  1. Implement `scripts/generate-readme-table.mjs` which reads `BASELINE_v2.1.0.json` and renders the markdown table between `<!-- BEGIN:RESULTS_TABLE -->` and `<!-- END:RESULTS_TABLE -->`.
   2. Add `--check` flag that fails if the checked-in `README.md` table differs from the generated table.
 - **Verification Command:**
   ```bash
@@ -271,9 +271,9 @@ Every checklist item below must satisfy four sequential gates before being marke
   ```
 - **Expected Output:**
   ```
-  README results table matches BASELINE_v2.0.0.json (0 drift).
+  README results table matches BASELINE_v2.1.0.json (0 drift).
   ```
-- [x] **Status:** VERIFIED. `node scripts/generate-readme-table.mjs --check` reports `README results table matches BASELINE_v2.0.0.json (0 drift).`
+- [x] **Status:** VERIFIED. `node scripts/generate-readme-table.mjs --check` reports `README results table matches BASELINE_v2.1.0.json (0 drift).`
 
 ---
 
@@ -294,9 +294,9 @@ Every checklist item below must satisfy four sequential gates before being marke
 ---
 
 ### [SEQ-15] Truthful External Specifications Classification
-- **Scope:** `Arbiter` (`README.md`, `FEATURE_STATUS.md`)
+- **Scope:** `Arbiter` (`README.md`, `docs/FEATURE_STATUS.md`)
 - **Requirement:**
-  1. Create `FEATURE_STATUS.md` recording status for all subsystems: `SHIPPED`, `SCAFFOLDED`, or `PLANNED`.
+  1. Create `docs/FEATURE_STATUS.md` recording status for all subsystems: `SHIPPED`, `SCAFFOLDED`, or `PLANNED`.
   2. Update `README.md` External Specifications table:
      - Clarify Tree-sitter WASM as `Planned Integration (Polyglot AST Symbol Discovery)`.
      - Clarify Capn Hook as `Complementary Architecture (Finalized Episodic Memory vs. In-Flight Waymark Continuity)`.
@@ -309,7 +309,7 @@ Every checklist item below must satisfy four sequential gates before being marke
   ```
   Matches found confirming updated annotations.
   ```
-- [x] **Status:** VERIFIED. Updated External Specifications table in `Arbiter/README.md` and created `Arbiter/FEATURE_STATUS.md` documenting all subsystem implementation statuses.
+- [x] **Status:** VERIFIED. Updated External Specifications table in `Arbiter/README.md` and created `Arbiter/docs/FEATURE_STATUS.md` documenting all subsystem implementation statuses.
 
 ---
 
@@ -319,10 +319,10 @@ Every checklist item below must satisfy four sequential gates before being marke
 - **Scope:** `arbiter-live-benchmark` (`scripts/check-doc-consistency.mjs`)
 - **Requirement:** Automated script that extracts scenario IDs and titles from:
   1. `scenarios/*.json`
-  2. `src/harness/adapters/deterministic.ts`
-  3. `BENCHMARK_AUTHORING.md`
+  2. `src/harness/adapters/subprocessMcp.ts`
+  3. `docs/BENCHMARK_AUTHORING.md`
   4. `README.md`
-  5. `BASELINE_v2.0.0.json`
+  5. `BASELINE_v2.1.0.json`
   Fails if any scenario ID maps to more than one unique title.
 - **Verification Command:**
   ```bash

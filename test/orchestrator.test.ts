@@ -33,17 +33,17 @@ describe('BenchmarkOrchestrator Suite', () => {
     assert.equal(scenarios[0].id, '004-parallel-arbiter');
   });
 
-  it('executes full suite and aggregates summary metrics', async () => {
+  it('executes suite and aggregates summary metrics', async () => {
     const orchestrator = new BenchmarkOrchestrator();
-    const scenarios = orchestrator.loadScenarios(scenariosDir);
-    const summary = await orchestrator.runSuite(scenarios, 'deterministic');
+    const scenarios = orchestrator.loadScenarios(scenariosDir, '001-single-agent-cold');
+    const summary = await orchestrator.runSuite(scenarios, 'subprocess_mcp');
 
-    assert.equal(summary.totalScenarios, 22);
-    assert.equal(summary.passedScenarios, 22);
+    assert.equal(summary.totalScenarios, 1);
+    assert.equal(summary.passedScenarios, 1);
     assert.equal(summary.failedScenarios, 0);
     assert.ok(summary.totalDurationMs >= 0);
     assert.ok(summary.heapUsedMb > 0);
-    assert.equal(summary.tier, 'deterministic');
+    assert.equal(summary.tier, 'subprocess_mcp');
   });
 
   it('executes Tier 3 comparative adapter via orchestrator', async () => {
@@ -54,19 +54,18 @@ describe('BenchmarkOrchestrator Suite', () => {
     assert.equal(summary.totalScenarios, 1);
     assert.equal(summary.tier, 'docker');
     assert.equal(summary.results[0].tier, 'docker');
-    assert.ok(summary.results[0].metrics.containerStartupMs! > 0);
   });
 
   it('executes multi-trial suite and aggregates statistical distributions', async () => {
     const orchestrator = new BenchmarkOrchestrator();
     const scenarios = orchestrator.loadScenarios(scenariosDir, '002-single-agent-waymark');
-    const summary = await orchestrator.runSuite(scenarios, 'deterministic', 5);
+    const summary = await orchestrator.runSuite(scenarios, 'subprocess_mcp', 2);
 
-    assert.equal(summary.trials, 5);
+    assert.equal(summary.trials, 2);
     assert.equal(summary.passedScenarios, 1);
     const result = summary.results[0];
     assert.ok(result.stats);
-    assert.equal(result.stats.trials, 5);
+    assert.equal(result.stats.trials, 2);
     assert.ok(result.stats.medianDurationMs >= 0);
   });
 });

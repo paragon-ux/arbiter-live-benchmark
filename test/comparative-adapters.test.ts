@@ -56,9 +56,14 @@ describe('Comparative Adapters Suite (Tier 3)', () => {
 
     const res = await adapter.execute(scenario);
     assert.strictEqual(res.tier, 'docker');
-    assert.strictEqual(res.metrics.worktreesIsolated, true);
-    assert.strictEqual(res.metrics.containerStartupMs! > 100, true);
-    assert.strictEqual(res.metrics.overheadRatio! > 10, true);
-    assert.strictEqual(res.passed, true);
+    if (res.metrics.details?.dockerDaemonAvailable) {
+      assert.strictEqual(res.metrics.worktreesIsolated, true);
+      assert.strictEqual(res.metrics.containerStartupMs! > 100, true);
+      assert.strictEqual(res.metrics.overheadRatio! > 10, true);
+      assert.strictEqual(res.passed, true);
+    } else {
+      assert.strictEqual(res.passed, false);
+      assert.match(res.error || '', /Docker daemon unreachable/);
+    }
   });
 });

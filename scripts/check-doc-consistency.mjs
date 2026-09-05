@@ -63,7 +63,7 @@ function checkScenarios() {
   const errors = [];
   const sources = [
     'scenarios/*.json',
-    'src/harness/adapters/deterministic.ts',
+    'src/harness/adapters/subprocessMcp.ts',
     'docs/BENCHMARK_AUTHORING.md',
     'README.md',
     'BASELINE_v2.1.0.json'
@@ -117,11 +117,11 @@ function checkScenarios() {
     }
   }
 
-  // 4. src/harness/adapters/deterministic.ts
-  const deterministicContent = readFileSync(resolve(rootDir, 'src/harness/adapters/deterministic.ts'), 'utf8');
+  // 4. src/harness/adapters/subprocessMcp.ts
+  const subprocessContent = readFileSync(resolve(rootDir, 'src/harness/adapters/subprocessMcp.ts'), 'utf8');
   for (const id of scenarioTitles.keys()) {
-    if (!deterministicContent.includes(`'${id}'`)) {
-      errors.push(`Scenario ${id} missing dispatch case in deterministic.ts`);
+    if (!subprocessContent.includes(`'${id}'`)) {
+      errors.push(`Scenario ${id} missing dispatch case in subprocessMcp.ts`);
     }
   }
 

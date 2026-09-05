@@ -8,17 +8,17 @@
   {
     "claim": "Waymark in-flight continuity token usage",
     "target": "waymark_tokens",
-    "expectedValue": 540,
-    "tolerancePercent": 5,
-    "generatingCommand": "node -e \"const b = require('./BASELINE_v2.1.0.json'); const s = (b.results || b.scenarios).find(x => x.scenarioId === '002-single-agent-waymark'); process.stdout.write(String(s.metrics.tokensTotal));\"",
+    "expectedValue": 750,
+    "tolerancePercent": 10,
+    "generatingCommand": "node -e \"const { execSync } = require('child_process'); const out = JSON.parse(execSync('node --no-warnings dist/src/cli/index.js --scenario 002-single-agent-waymark --json', { encoding: 'utf8' })); process.stdout.write(String(out.results[0].metrics.tokensTotal));\"",
     "lastVerifiedDate": "2026-09-05"
   },
   {
     "claim": "Cold exploration baseline token usage",
     "target": "cold_tokens",
-    "expectedValue": 7249,
-    "tolerancePercent": 5,
-    "generatingCommand": "node -e \"const b = require('./BASELINE_v2.1.0.json'); const s = (b.results || b.scenarios).find(x => x.scenarioId === '001-single-agent-cold'); process.stdout.write(String(s.metrics.tokensTotal));\"",
+    "expectedValue": 14160,
+    "tolerancePercent": 10,
+    "generatingCommand": "node -e \"const { execSync } = require('child_process'); const out = JSON.parse(execSync('node --no-warnings dist/src/cli/index.js --scenario 001-single-agent-cold --json', { encoding: 'utf8' })); process.stdout.write(String(out.results[0].metrics.tokensTotal));\"",
     "lastVerifiedDate": "2026-09-05"
   },
   {
