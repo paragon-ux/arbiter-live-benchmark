@@ -10,7 +10,7 @@
 
 ## Table of Contents
 
-- [Empirical Results Summary (v2.1.0)](#empirical-results-summary-v210)
+- [Empirical Results Summary (v2.1.1)](#empirical-results-summary-v211)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Why Benchmark Multi-Agent Orchestration?](#why-benchmark-multi-agent-orchestration)
 - [The 22 Benchmark Scenarios](#the-22-benchmark-scenarios)
@@ -24,7 +24,7 @@
 
 ---
 
-## Empirical Results Summary (v2.1.0)
+## Empirical Results Summary (v2.1.1)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
