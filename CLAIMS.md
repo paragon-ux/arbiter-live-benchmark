@@ -1,6 +1,6 @@
 # Benchmark Quantitative Claims Registry
 
-**Document Version:** 2.1.2-PROD  
+**Document Version:** 2.1.3-PROD  
 **Single Source of Truth for Benchmark & Performance Claims**
 
 ```json

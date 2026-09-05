@@ -1065,7 +1065,7 @@ export class SubprocessMcpAdapter {
     }
   }
 
-  // 019: N-way concurrent merge conflicts
+  // 019: N-way concurrent merge conflicts & worktree quarantine
   private async runNWayMergeConflicts(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
     const { repoPath, cleanup } = createTempGitRepo(targetPath);
@@ -1073,54 +1073,101 @@ export class SubprocessMcpAdapter {
     try {
       const dbPath = path.join(repoPath, '.arbiter', 'arbiter.db');
       const db = new ArbiterDatabase(dbPath);
-      makeTask(db, { id: 'task-clean-1', title: 'Clean 1', description: 'Modify token' });
-      makeTask(db, { id: 'task-conf-1', title: 'Conflict 1', description: 'Conflicting auth' });
-      makeTask(db, { id: 'task-conf-2', title: 'Conflict 2', description: 'Conflicting auth' });
+      makeTask(db, { id: 'task-nway-1', title: 'Orthogonal Token Service', description: 'Token utility additions' });
+      makeTask(db, { id: 'task-nway-2', title: 'Orthogonal Crypto Utilities', description: 'Crypto helper additions' });
+      makeTask(db, { id: 'task-nway-3', title: 'Auth Collision Variant 1', description: 'Conflicting auth handler edit' });
+      makeTask(db, { id: 'task-nway-4', title: 'Auth Collision Variant 2', description: 'Conflicting auth handler edit' });
+      makeTask(db, { id: 'task-nway-5', title: 'Auth Collision Variant 3', description: 'Conflicting auth handler edit' });
       db.close();
 
-      const [wClean, wConf1, wConf2] = await Promise.all([
+      const authFile = path.join(repoPath, 'src', 'auth.ts');
+      const baseAuthContent = fs.readFileSync(authFile, 'utf8');
+
+      // Spawn 5 concurrent worker child processes (2 orthogonal, 3 colliding)
+      const workers = await Promise.all([
         spawnWorkerSubprocess({
-          workerId: 'worker-clean',
+          workerId: 'worker-clean-1',
           repoPath,
           mode: 'cli',
-          files: [{ path: 'src/token.ts', append: '\nexport const TOKEN_EXTRA = 1;\n' }],
+          files: [{ path: 'src/token.ts', append: '\nexport const TOKEN_EXTRA_UTIL = 1;\n' }],
         }),
         spawnWorkerSubprocess({
-          workerId: 'worker-c1',
+          workerId: 'worker-clean-2',
           repoPath,
           mode: 'cli',
-          files: [{ path: 'src/auth.ts', content: 'export const AUTH = "C1";\n' }],
+          files: [{ path: 'src/crypto.ts', append: '\nexport const CRYPTO_EXTRA_UTIL = 2;\n' }],
         }),
         spawnWorkerSubprocess({
-          workerId: 'worker-c2',
+          workerId: 'worker-conf-1',
           repoPath,
           mode: 'cli',
-          files: [{ path: 'src/auth.ts', content: 'export const AUTH = "C2";\n' }],
+          files: [{ path: 'src/auth.ts', content: `// Worker 1 auth variant collision\n${baseAuthContent}` }],
+        }),
+        spawnWorkerSubprocess({
+          workerId: 'worker-conf-2',
+          repoPath,
+          mode: 'cli',
+          files: [{ path: 'src/auth.ts', content: `// Worker 2 auth variant collision\n${baseAuthContent}` }],
+        }),
+        spawnWorkerSubprocess({
+          workerId: 'worker-conf-3',
+          repoPath,
+          mode: 'cli',
+          files: [{ path: 'src/auth.ts', content: `// Worker 3 auth variant collision\n${baseAuthContent}` }],
         }),
       ]);
+
+      // Inject upstream commit on main's auth.ts so all 3 auth variants conflict with main
+      fs.writeFileSync(authFile, `// Upstream authoritative authentication handler\n${baseAuthContent}`, 'utf8');
+      execFileSync('git', ['add', 'src/auth.ts'], { cwd: repoPath, windowsHide: true });
+      execFileSync('git', ['commit', '-m', 'chore(auth): upstream auth contract update'], { cwd: repoPath, windowsHide: true });
+
+      const [wClean1, wClean2, wConf1, wConf2, wConf3] = workers;
+
+      // Dynamically map claimed task IDs from worker receipts to prevent scheduling race conditions
+      const cleanTaskIds = [wClean1.taskId, wClean2.taskId].filter(Boolean) as string[];
+      const confTaskIds = [wConf1.taskId, wConf2.taskId, wConf3.taskId].filter(Boolean) as string[];
 
       const mergeDb = new ArbiterDatabase(dbPath);
       const worktrees = new WorktreeManager(repoPath);
       const mergeQueue = new MergeQueue(mergeDb, worktrees, repoPath);
-      const resClean = mergeQueue.mergeTask('task-clean-1', 'main');
-      const resC1 = mergeQueue.mergeTask('task-conf-1', 'main');
-      const resC2 = mergeQueue.mergeTask('task-conf-2', 'main');
+
+      // 1. Merge orthogonal tasks sequentially - both must merge cleanly
+      const cleanResults = cleanTaskIds.map((taskId) => mergeQueue.mergeTask(taskId, 'main'));
+      const cleanMerges = cleanResults.filter((r) => r.ok).length;
+      const cleanOk = cleanMerges === 2;
+
+      // 2. Merge colliding tasks sequentially - all 3 must collide and quarantine
+      const confResults = confTaskIds.map((taskId) => mergeQueue.mergeTask(taskId, 'main'));
+      const conflictsQuarantined = confResults.filter((r) => !r.ok && r.conflict === true).length;
+      const confOk = conflictsQuarantined === 3;
+
       mergeDb.close();
 
-      const cleanOk = resClean.ok;
-      const c1Ok = resC1.ok;
-      const c2Quarantined = !resC2.ok && resC2.conflict === true;
+      let mainBranchValid = false;
+      try {
+        const status = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath, windowsHide: true, encoding: 'utf8' }).trim();
+        mainBranchValid = status.length === 0;
+      } catch {}
 
-      collector.addTokens(wClean.tokensMeasured + wConf1.tokensMeasured + wConf2.tokensMeasured);
-      collector.setMainValidity(cleanOk && c1Ok);
-      collector.setAccuracy(cleanOk && c1Ok && c2Quarantined ? 100 : 0);
+      const totalTokens = workers.reduce((acc, w) => acc + w.tokensMeasured, 0);
+      const allPassed = cleanOk && confOk && mainBranchValid;
+
+      collector.addTokens(totalTokens);
+      collector.setMainValidity(mainBranchValid);
+      collector.setAccuracy(allPassed ? 100 : 0);
+      collector.setDetail('contendingWorkers', 5);
+      collector.setDetail('sharedFilesModified', ['src/auth.ts']);
+      collector.setDetail('cleanMerges', cleanMerges);
+      collector.setDetail('conflictsQuarantined', conflictsQuarantined);
+      collector.setDetail('mainBranchIntact', mainBranchValid);
 
       const metrics = collector.finish();
       return {
         scenarioId: scenario.id,
         title: scenario.title,
         tier: 'subprocess_mcp',
-        passed: cleanOk && c1Ok && c2Quarantined,
+        passed: allPassed,
         metrics,
       };
     } finally {
