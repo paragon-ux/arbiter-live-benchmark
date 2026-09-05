@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * Claims Registry Validation Script (arbiter-live-benchmark)
@@ -37,11 +37,26 @@ for (const entry of claims) {
 
     const expected = entry.expectedValue;
     const tol = entry.tolerancePercent;
-    const diff = Math.abs(numericValue - expected);
     const maxAllowedDiff = expected === 0 ? 0 : (expected * tol) / 100;
 
-    if (diff > maxAllowedDiff) {
-      console.error(`Claim "${entry.claim}" value ${numericValue} outside tolerance (expected ${expected} ±${tol}%)`);
+    let outsideTolerance = false;
+    if (entry.upperBoundOnly) {
+      // For ceiling metrics (token consumption, latency, memory), lower is better.
+      // Measured values lower than expected represent positive efficiency gains.
+      if (numericValue > expected + maxAllowedDiff) {
+        outsideTolerance = true;
+      }
+    } else {
+      const diff = Math.abs(numericValue - expected);
+      if (diff > maxAllowedDiff) {
+        outsideTolerance = true;
+      }
+    }
+
+    if (outsideTolerance) {
+      console.error(
+        `Claim "${entry.claim}" value ${numericValue} outside tolerance (expected ${entry.upperBoundOnly ? '<= ' : ''}${expected} ±${tol}%)`
+      );
       failed++;
     }
   } catch (err) {

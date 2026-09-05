@@ -27,8 +27,11 @@ const waymarkCliScript = [
   path.resolve(rootDir, '../Waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../../waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../../Waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../../waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../../Waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
   path.resolve(rootDir, '../../Deepseek-Project/Waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../../../Deepseek-Project/Waymark/dist/src/cli.js'),
 ].find((c) => c && fs.existsSync(c)) || '';
 
 if (waymarkCliScript && !process.env.WAYMARK_CLI_PATH) {

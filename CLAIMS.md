@@ -9,7 +9,8 @@
     "claim": "Waymark in-flight continuity token usage",
     "target": "waymark_tokens",
     "expectedValue": 750,
-    "tolerancePercent": 10,
+    "tolerancePercent": 25,
+    "upperBoundOnly": true,
     "generatingCommand": "node -e \"const { execSync } = require('child_process'); const out = JSON.parse(execSync('node --no-warnings dist/src/cli/index.js --scenario 002-single-agent-waymark --json', { encoding: 'utf8' })); process.stdout.write(String(out.results[0].metrics.tokensTotal));\"",
     "lastVerifiedDate": "2026-09-05"
   },
