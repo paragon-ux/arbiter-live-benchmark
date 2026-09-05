@@ -1,28 +1,37 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { get_encoding, type Tiktoken } from '@dqbd/tiktoken';
+
+let _encoder: Tiktoken | null = null;
+
+function getEncoder(): Tiktoken | null {
+  if (!_encoder) {
+    try {
+      _encoder = get_encoding('cl100k_base');
+    } catch {
+      _encoder = null;
+    }
+  }
+  return _encoder;
+}
 
 /**
- * Canonical Token Counter for Empirical Codebase & Trajectory Measurements
+ * Live Canonical Token Counter powered by @dqbd/tiktoken (cl100k_base BPE).
  * 
- * Uses standard BPE/character calibration for code:
- * Code tokenization typically yields ~3.7-4.0 characters per token across
- * modern LLM tokenizers (tiktoken cl100k_base, Claude, Gemini).
+ * Provides authentic, compiled BPE token counts for code, diffs, JSON payloads, and prompts.
+ * Falls back gracefully to heuristic character ratio if BPE encoder fails to initialize.
  */
 export function countTokens(text: string, charsPerToken: number = 3.8): number {
   if (!text || text.length === 0) return 0;
-  // A calibrated regex tokenizer splitting into words, whitespace, and code symbols
-  const tokens = text.match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]+|\s+/gu) || [];
-  let tokenCount = 0;
-  for (const t of tokens) {
-    // Single characters or short punctuation = 1 token
-    if (t.length <= 4) {
-      tokenCount += 1;
-    } else {
-      // Longer tokens scale roughly by charsPerToken per subword
-      tokenCount += Math.ceil(t.length / charsPerToken);
+  const enc = getEncoder();
+  if (enc) {
+    try {
+      return enc.encode(text).length;
+    } catch {
+      // Fallback if encode errors on unexpected binary/surrogate sequences
     }
   }
-  return tokenCount;
+  return Math.ceil(text.length / charsPerToken);
 }
 
 export function measureTargetTokens(targetDir: string): { totalTokens: number; fileCount: number; bytes: number } {

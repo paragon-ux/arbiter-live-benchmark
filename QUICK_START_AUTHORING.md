@@ -73,8 +73,9 @@ private async runExampleScenario(scenario: BaseScenario, collector: MetricsColle
     const mergeQueue = new MergeQueue(db, worktrees, repoPath);
 
     // 1. Setup tasks and execute
-    // 2. Measure tokens, record details
-    collector.addTokens(1200);
+    // 2. Measure tokens dynamically from live prompts, AST mutations, and files
+    const prompt = `Task instructions for ${scenario.id}`;
+    collector.addTokensFromText(prompt);
     collector.setDetail('customMetric', true);
     collector.setMainValidity(true);
     collector.setAccuracy(100);

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-04T20:47:42.702Z",
+  "timestamp": "2026-09-05T00:24:24.470Z",
   "nodeVersion": "v22.19.0",
   "platform": "win32 (x64)",
   "tier": "deterministic",
@@ -7,9 +7,9 @@
   "totalScenarios": 22,
   "passedScenarios": 22,
   "failedScenarios": 0,
-  "totalDurationMs": 114964.35,
-  "averageSavingsPercent": 82,
-  "heapUsedMb": 6.67,
+  "totalDurationMs": 105207.69,
+  "averageSavingsPercent": 86,
+  "heapUsedMb": 6.57,
   "results": [
     {
       "scenarioId": "001-single-agent-cold",
@@ -17,8 +17,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 16.36,
-        "tokensTotal": 7120,
+        "durationMs": 961.19,
+        "tokensTotal": 7249,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -26,16 +26,17 @@
         "details": {
           "targetCodebase": "microservice-auth",
           "fileCountScanned": 12,
+          "filesScanned": 12,
           "bytesScanned": 9667,
           "compactionRecoveryType": "COLD_REREAD"
         },
         "continuitySavingsPercent": 0
       },
-      "rawDurationMs": 16.36,
+      "rawDurationMs": 961.19,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 16.36,
+          "durationMs": 961.19,
           "passed": true
         }
       ]
@@ -46,26 +47,26 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 22.91,
-        "tokensTotal": 1000,
+        "durationMs": 361.98,
+        "tokensTotal": 540,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
         "accuracyPercent": 95,
         "details": {
-          "waymarkResumeTokens": 180,
-          "coldBaselineTokens": 7120,
+          "waymarkResumeTokens": 95,
+          "coldBaselineTokens": 7249,
           "continuityStatus": "FRESH"
         },
-        "waymarkResumeTokens": 180,
-        "tokensSaved": 6120,
-        "continuitySavingsPercent": 86
+        "waymarkResumeTokens": 95,
+        "tokensSaved": 6709,
+        "continuitySavingsPercent": 93
       },
-      "rawDurationMs": 22.91,
+      "rawDurationMs": 361.98,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 22.91,
+          "durationMs": 361.98,
           "passed": true
         }
       ]
@@ -76,7 +77,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 1.35,
+        "durationMs": 91.17,
         "tokensTotal": 0,
         "conflictsDetected": 1,
         "conflictsResolved": 0,
@@ -85,14 +86,15 @@
         "details": {
           "dirtyWorkingTree": true,
           "clobberedFile": "src/auth.ts",
-          "isolationPreserved": false
+          "isolationPreserved": false,
+          "workerAClobbered": true
         }
       },
-      "rawDurationMs": 1.35,
+      "rawDurationMs": 91.17,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 1.35,
+          "durationMs": 91.17,
           "passed": true
         }
       ]
@@ -103,12 +105,12 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 2054.64,
-        "tokensTotal": 2100,
+        "durationMs": 2302.67,
+        "tokensTotal": 1362,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
-        "accuracyPercent": 98,
+        "accuracyPercent": 100,
         "details": {
           "worktreesProvisioned": 3,
           "worktreesIsolated": true,
@@ -117,11 +119,11 @@
         "worktreesProvisioned": 3,
         "worktreesIsolated": true
       },
-      "rawDurationMs": 2054.64,
+      "rawDurationMs": 2302.67,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 2054.64,
+          "durationMs": 2302.67,
           "passed": true
         }
       ]
@@ -132,7 +134,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 3.86,
+        "durationMs": 346.8,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -141,14 +143,14 @@
         "details": {
           "dagNodesResolved": 12,
           "topologicalSortValid": true,
-          "topologicalSortLatencyMs": 0.935
+          "topologicalSortLatencyMs": 1.445
         }
       },
-      "rawDurationMs": 3.86,
+      "rawDurationMs": 346.8,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 3.86,
+          "durationMs": 346.8,
           "passed": true
         }
       ]
@@ -159,7 +161,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 1368.51,
+        "durationMs": 1753.37,
         "tokensTotal": 0,
         "conflictsDetected": 1,
         "conflictsResolved": 1,
@@ -171,11 +173,11 @@
           "reconciliationStaged": true
         }
       },
-      "rawDurationMs": 1368.51,
+      "rawDurationMs": 1753.37,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 1368.51,
+          "durationMs": 1753.37,
           "passed": true
         }
       ]
@@ -186,7 +188,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 87.43,
+        "durationMs": 218.31,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -195,16 +197,16 @@
         "details": {
           "livenessProbe": "process.kill(pid, 0)",
           "pidAlive": false,
-          "pidReaped": 24284,
+          "pidReaped": 10512,
           "leaseReclaimed": true,
           "taskResetStatus": "READY"
         }
       },
-      "rawDurationMs": 87.43,
+      "rawDurationMs": 218.31,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 87.43,
+          "durationMs": 218.31,
           "passed": true
         }
       ]
@@ -215,8 +217,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 692.29,
-        "tokensTotal": 1250,
+        "durationMs": 789.59,
+        "tokensTotal": 449,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -229,11 +231,11 @@
           "zeroRegression": true
         }
       },
-      "rawDurationMs": 692.29,
+      "rawDurationMs": 789.59,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 692.29,
+          "durationMs": 789.59,
           "passed": true
         }
       ]
@@ -244,8 +246,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 8336.95,
-        "tokensTotal": 6800,
+        "durationMs": 10328.48,
+        "tokensTotal": 4860,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -259,11 +261,11 @@
         "worktreesProvisioned": 10,
         "worktreesIsolated": true
       },
-      "rawDurationMs": 8336.95,
+      "rawDurationMs": 10328.48,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 8336.95,
+          "durationMs": 10328.48,
           "passed": true
         }
       ]
@@ -274,7 +276,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 2.79,
+        "durationMs": 91.55,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -283,14 +285,14 @@
         "details": {
           "cycleDetected": true,
           "tasksExecuted": 0,
-          "rejectionLatencyMs": 0.192
+          "rejectionLatencyMs": 0.173
         }
       },
-      "rawDurationMs": 2.79,
+      "rawDurationMs": 91.55,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 2.79,
+          "durationMs": 91.55,
           "passed": true
         }
       ]
@@ -301,7 +303,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 3.64,
+        "durationMs": 115.59,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -316,11 +318,11 @@
           "deadlockDetected": false
         }
       },
-      "rawDurationMs": 3.64,
+      "rawDurationMs": 115.59,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 3.64,
+          "durationMs": 115.59,
           "passed": true
         }
       ]
@@ -331,7 +333,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 1019.2,
+        "durationMs": 1008.06,
         "tokensTotal": 0,
         "conflictsDetected": 1,
         "conflictsResolved": 1,
@@ -339,15 +341,16 @@
         "accuracyPercent": 98,
         "details": {
           "signalCaught": "SIGTERM",
+          "interruptType": "MERGE_CONFLICT_ABORT",
           "rollbackCommand": "git merge --abort",
           "quarantinedWorktree": "task-merge-interrupt"
         }
       },
-      "rawDurationMs": 1019.2,
+      "rawDurationMs": 1008.06,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 1019.2,
+          "durationMs": 1008.06,
           "passed": true
         }
       ]
@@ -358,52 +361,52 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 3.99,
-        "tokensTotal": 550,
+        "durationMs": 7.74,
+        "tokensTotal": 213,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
         "accuracyPercent": 99,
         "details": {
           "compactionCycles": 3,
-          "trajectoryHash": "019b2e5350c9e3c8cb9d8290a8f47bc1a49e3ce8ea91280a1475d68592134dc6",
+          "trajectoryHash": "d86c16082ee2f542687cbdb9b0548767bbc19017670f08ff0a59fe7ef650f93f",
           "hashStability": "VERIFIED_IDENTICAL"
         },
         "continuitySavingsPercent": 78
       },
-      "rawDurationMs": 3.99,
+      "rawDurationMs": 7.74,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 3.99,
+          "durationMs": 7.74,
           "passed": true
         }
       ]
     },
     {
       "scenarioId": "014-disk-full-recovery",
-      "title": "Disk-Full (ENOSPC) Fault-Tolerant Transaction Rollback",
+      "title": "SQLite Transaction Rollback & Lease Recovery",
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 2.51,
+        "durationMs": 89.88,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
         "accuracyPercent": 100,
         "details": {
-          "faultInjected": "ENOSPC",
+          "faultInjected": "TRANSACTION_ROLLBACK",
           "transactionRolledBack": true,
           "orphanLocksRemaining": 0,
           "leaseReleased": true
         }
       },
-      "rawDurationMs": 2.51,
+      "rawDurationMs": 89.88,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 2.51,
+          "durationMs": 89.88,
           "passed": true
         }
       ]
@@ -414,29 +417,30 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 522.93,
-        "tokensTotal": 2100,
+        "durationMs": 265.77,
+        "tokensTotal": 1011,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
         "accuracyPercent": 98,
         "details": {
           "dockerDaemonAvailable": false,
-          "coordinationStrategy": "DOCKER_CONTAINER_PER_WORKER",
-          "containerStartupLatencyMs": 350,
+          "measurementSource": "CALIBRATED_REFERENCE",
+          "coordinationStrategy": "OS_PROCESS_ISOLATION_CONTAINER",
+          "containerStartupLatencyMs": 113.42,
           "worktreeLatencyMs": 4.2,
-          "overheadVsWorktrees": "83.3x slower startup"
+          "overheadVsWorktrees": "27x slower startup"
         },
         "worktreesProvisioned": 3,
         "worktreesIsolated": true,
-        "containerStartupMs": 350,
-        "overheadRatio": 83.3
+        "containerStartupMs": 113.42,
+        "overheadRatio": 27
       },
-      "rawDurationMs": 522.93,
+      "rawDurationMs": 265.77,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 522.93,
+          "durationMs": 265.77,
           "passed": true
         }
       ]
@@ -447,8 +451,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 39.05,
-        "tokensTotal": 2500,
+        "durationMs": 38.8,
+        "tokensTotal": 1116,
         "conflictsDetected": 2,
         "conflictsResolved": 0,
         "mainBranchValid": false,
@@ -456,18 +460,18 @@
         "details": {
           "coordinationStrategy": "SHARED_DIRECTORY_FILE_MUTEX",
           "lockContentionCount": 6,
-          "mutexWaitMs": 35.97
+          "mutexWaitMs": 42.33
         },
         "worktreesProvisioned": 0,
         "worktreesIsolated": false,
-        "mutexWaitMs": 35.97,
+        "mutexWaitMs": 42.33,
         "lockContentionCount": 6
       },
-      "rawDurationMs": 39.05,
+      "rawDurationMs": 38.8,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 39.05,
+          "durationMs": 38.8,
           "passed": true
         }
       ]
@@ -478,8 +482,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 83263.58,
-        "tokensTotal": 34000,
+        "durationMs": 67757.64,
+        "tokensTotal": 21450,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -493,11 +497,11 @@
         "worktreesProvisioned": 50,
         "worktreesIsolated": true
       },
-      "rawDurationMs": 83263.58,
+      "rawDurationMs": 67757.64,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 83263.58,
+          "durationMs": 67757.64,
           "passed": true
         }
       ]
@@ -508,8 +512,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 18.55,
-        "tokensTotal": 4200,
+        "durationMs": 187,
+        "tokensTotal": 784,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -519,11 +523,11 @@
           "topologicalResolution": "KAHN_SORT_SUCCESS"
         }
       },
-      "rawDurationMs": 18.55,
+      "rawDurationMs": 187,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 18.55,
+          "durationMs": 187,
           "passed": true
         }
       ]
@@ -534,8 +538,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 4786.77,
-        "tokensTotal": 3600,
+        "durationMs": 4328.54,
+        "tokensTotal": 1716,
         "conflictsDetected": 3,
         "conflictsResolved": 3,
         "mainBranchValid": true,
@@ -551,11 +555,11 @@
           "mainBranchIntact": true
         }
       },
-      "rawDurationMs": 4786.77,
+      "rawDurationMs": 4328.54,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 4786.77,
+          "durationMs": 4328.54,
           "passed": true
         }
       ]
@@ -566,8 +570,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 1059.08,
-        "tokensTotal": 1850,
+        "durationMs": 1286.05,
+        "tokensTotal": 562,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -578,11 +582,11 @@
           "mergeClean": true
         }
       },
-      "rawDurationMs": 1059.08,
+      "rawDurationMs": 1286.05,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 1059.08,
+          "durationMs": 1286.05,
           "passed": true
         }
       ]
@@ -593,8 +597,8 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 815.72,
-        "tokensTotal": 1500,
+        "durationMs": 1013.86,
+        "tokensTotal": 1043,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
@@ -608,11 +612,11 @@
         "worktreesProvisioned": 1,
         "worktreesIsolated": true
       },
-      "rawDurationMs": 815.72,
+      "rawDurationMs": 1013.86,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 815.72,
+          "durationMs": 1013.86,
           "passed": true
         }
       ]
@@ -623,7 +627,7 @@
       "tier": "deterministic",
       "passed": true,
       "metrics": {
-        "durationMs": 7.88,
+        "durationMs": 39.87,
         "tokensTotal": 0,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
@@ -638,11 +642,11 @@
           "waymarkLockRecovered": true
         }
       },
-      "rawDurationMs": 7.88,
+      "rawDurationMs": 39.87,
       "trialHistory": [
         {
           "trialIndex": 1,
-          "durationMs": 7.88,
+          "durationMs": 39.87,
           "passed": true
         }
       ]

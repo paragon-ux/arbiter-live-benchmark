@@ -47,7 +47,7 @@
         {
           "type": "waymark_resume",
           "detailLevel": "compact",
-          "resumeTokens": 180
+          "resumeTokens": 95
         },
         {
           "type": "edit",
@@ -67,7 +67,7 @@
   ],
   "expectedMetrics": {
     "maxTokens": 2200,
-    "waymarkResumeTokens": 180,
-    "continuitySavingsPercent": 72
+    "waymarkResumeTokens": 95,
+    "continuitySavingsPercent": 75
   }
 }

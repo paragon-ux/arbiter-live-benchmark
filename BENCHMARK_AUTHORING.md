@@ -21,7 +21,7 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 | **`011-concurrent-lease-collision`** | Concurrent Lease Collision & EAGAIN | Tier 1 / 1.5 / 2 | Race Condition | High-contention race condition testing task lease acquisition atomicity. |
 | **`012-signal-interrupted-merge`** | Signal-Interrupted Merge Rollback | Tier 1 / 1.5 / 2 | Crash Recovery | Mid-merge `SIGTERM` interrupt testing fail-closed rollback. |
 | **`013-waymark-multi-compaction`** | Multi-Compaction Trajectory Stability | Tier 1 / 1.5 / 2 | Continuity Durability | Durability of Waymark in-flight continuity across sequential compactions. |
-| **`014-disk-full-recovery`** | Disk-Full (ENOSPC) Fault Recovery | Tier 1 / 1.5 / 2 | Storage Resilience | Graceful transaction rollback and lease cleanup on storage exhaustion. |
+| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | Tier 1 / 1.5 / 2 | Storage Resilience | Graceful transaction rollback and lease cleanup on forced transaction abort. |
 | **`015-docker-isolated-overhead`** | Docker Containerization Overhead | Tier 3 (Docker) | Comparative Overhead | Quantifies container spin-up and teardown latency overhead vs. worktrees. |
 | **`016-naive-mutex-contention`** | Naive Mutex Contention & Starvation | Tier 3 (Naive Mutex)| Comparative Baseline | Negative baseline measuring lock contention, starvation, and deadlock. |
 | **`017-parallel-50-workers`** | Massive Concurrency Scale (50 Workers) | Tier 1 / 1.5 / 2 | Concurrency Limits | 50 concurrent agents stressing WAL concurrency and OS file handle limits. |
@@ -68,12 +68,12 @@ Every scenario fixture lives in `scenarios/<id>.json` and must adhere to the fol
 
 ---
 
-## 3. PRNG Determinism & Seeding Rules
+## 3. Determinism & Reproducibility Rules
 
 To preserve reproducible regression verification on CI:
-1. **Zero OS Entropy**: Never use `Math.random()` or unseeded `crypto.randomBytes()`.
-2. **Mulberry32 PRNG**: Use the `SeededRNG` instance initialized with seed `0x6D2B79F5`.
-3. **Byte-Identical Outputs**: 10 consecutive executions of any scenario in deterministic mode must yield byte-identical results.
+1. **Deterministic Scenario Ordering**: Scenarios execute in fixed ID order (001→022) with consistent configuration.
+2. **Seeded PRNG (where applicable)**: Use the `SeededRNG` instance (Mulberry32 with seed `0x6D2B79F5`) for any randomized selection within scenarios. Never use `Math.random()` or unseeded `crypto.randomBytes()`.
+3. **Timing Variance**: Scenarios that perform real Git I/O will produce varying `durationMs` across runs. Non-timing fields (pass/fail, token counts, accuracy) should remain stable across runs on the same platform.
 
 ---
 
@@ -81,7 +81,7 @@ To preserve reproducible regression verification on CI:
 
 The benchmark executes across four defined tiers:
 
-- **Tier 1 (Deterministic Simulator)**: Seeded replay simulation with pre-recorded I/O fixtures ($0 cost, sub-5ms).
+- **Tier 1 (Live Arbiter Engine)**: Executes real Arbiter primitives (WorktreeManager, MergeQueue, TaskGraph, ArbiterDatabase) with real Git worktrees and SQLite WAL. Deterministic scenario ordering with real wall-clock timing ($0 cost).
 - **Tier 1.5 (Headless Subprocess MCP Runner)**: Spawns real child processes communicating via JSON-RPC 2.0 `stdio` ($0 token cost).
 - **Tier 2 (Live Agy Runner)**: Spawns real autonomous agents via local Antigravity CLI (`agy`) across live worktrees.
 - **Tier 3 (Comparative Baselines)**:
@@ -105,8 +105,8 @@ The benchmark executes across four defined tiers:
 | **H8** | High-Concurrency WAL Write Serialization | `009`, `017` | Zero SQLite locked errors, sequential commits |
 | **H9** | Kahn DAG Sort & Cycle Rejection | `005`, `010` | O(V+E) task resolution; immediate cycle error |
 | **H10** | Atomic Task Lease Acquisition & EAGAIN | `011` | Exactly one winner per task lease race |
-| **H11** | Crash Safety & Signal-Interrupted Rollback | `012` | Clean repository state on SIGTERM |
-| **H12** | ENOSPC / Storage Exhaustion Recovery | `014` | Graceful rollback when filesystem is full |
+| **H11** | Crash Safety & Signal-Interrupted Rollback | `012` | Clean repository state on merge conflict abort |
+| **H12** | Transaction Rollback Recovery | `014` | Graceful rollback on forced transaction abort |
 | **H13** | Worktree vs Containerization Efficiency | `015` | Worktrees >50x faster than container start |
 | **H14** | Worktree Isolation vs Naive File Mutexes | `003`, `016` | Mutex causes starvation/deadlock; worktrees 0 |
 | **H15** | Monorepo Diamond Dependency DAG Resolution | `018` | Cross-package topological ordering |

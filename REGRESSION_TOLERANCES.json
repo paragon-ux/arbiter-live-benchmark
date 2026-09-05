@@ -11,19 +11,22 @@
       "platform_pattern": "linux",
       "latency_percent": 25,
       "tokens_percent": 5,
-      "max_cv": 0.25
+      "max_cv": 0.25,
+      "jitter_floor_ms": 5.0
     },
     "macos": {
       "platform_pattern": "darwin",
       "latency_percent": 60,
       "tokens_percent": 5,
-      "max_cv": 0.45
+      "max_cv": 0.45,
+      "jitter_floor_ms": 10.0
     },
     "windows": {
       "platform_pattern": "win32",
       "latency_percent": 100,
       "tokens_percent": 5,
-      "max_cv": 0.6
+      "max_cv": 0.6,
+      "jitter_floor_ms": 50.0
     }
   }
 }

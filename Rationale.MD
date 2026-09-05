@@ -32,22 +32,22 @@ If an agent crashes (due to timeout, out-of-memory, network disconnect, or IDE w
 
 | Hypothesis | Independent Variable | Controlled Conditions | Measured Metric | Expected Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **H1: In-Flight Continuity** | Continuity Mechanism (Cold Re-read vs. Waymark Trajectory) | Identical compaction trigger, same target codebase | Tokens consumed to resume, exploration hops | $\ge 75\%$ token reduction with Waymark (<216 tokens) |
-| **H2: Worktree Isolation** | Isolation Strategy (Shared Working Copy vs. Ephemeral Worktrees) | 3 concurrent agents editing related modules | Working copy cleanliness, test pass rate | 100% test pass rate in isolated worktrees vs. dirty failures in shared copy |
-| **H3: DAG Scheduling** | Task Dispatcher (Linear vs. Kahn Topological Sort) | 12-task dependency graph with critical path | Task dispatch latency, ordering violations | Zero ordering violations; $<5\text{ms}$ dispatch latency |
-| **H4: Fail-Closed Quarantine** | Merge Protocol (Direct Merge vs. Sequential Quarantine) | Intentionally conflicting edits across 2 tasks | Integrity of `main`, rollback cleanly executed | `main` remains 100% pristine; conflicted worktree quarantined in `CONFLICT` |
-| **H5: Zero-Daemon Watchdog** | Lease Reclaim (Passive timeout vs. Active OS Signal `kill(pid,0)`) | Killed agent process with active lease | Lease reclamation latency, orphan avoidance | Lease reclaimed in $<5\text{ms}$; task reset to `READY` |
-| **H6: Semantic Correctness** | Code Generation Protocol (Unguided vs. Strict AST Schema) | Syntax & interface mutation tasks | AST schema validity, test pass rate | 100% valid AST nodes, zero syntax regressions |
-| **H7: Worktree Scalability** | Worker Concurrency (3 vs. 10 Concurrent Worktrees) | High-concurrency parallel tasks | Worktree isolation integrity, resource overhead | Zero cross-worktree bleed across 10 concurrent workers |
-| **H8: Cycle Detection** | Dependency Validation (Unchecked vs. DFS Cycle Rejection) | Cyclic dependency graph ($A \to B \to C \to A$) | Cycle rejection latency, graph corruption | Immediate cycle rejection with cycle path diagnostics |
-| **H9: Lease Atomicity** | Concurrency Control (Naive read-check vs. SQLite `BEGIN IMMEDIATE`) | High-contention race on single ready task | Duplicate lease count, lease collisions | Exactly 1 worker wins lease; 0 duplicate claims |
-| **H10: Signal Recovery** | Interruption Resilience (Standard merge vs. Atomic transaction) | Mid-merge SIGINT/SIGTERM interruption | Dirty worktree state, working tree cleanliness | 100% clean rollback to pristine base state |
-| **H11: Multi-Compaction** | Trajectory Durability (Single checkpoint vs. Rolling Ledger) | 5 sequential context compactions | Final trajectory continuity, breadcrumb drift | Preserves unbroken lineage across all 5 compactions |
-| **H12: Disk-Full Handling** | Storage Exhaustion Resilience (Unchecked write vs. Atomic check) | Simulated `ENOSPC` / storage exhaustion | Database corruption, task rollback status | Graceful rollback, task remains recoverable |
-| **H13: Containerization Overhead** | Isolation Mechanism (Docker Container vs. Ephemeral Worktree) | 3 concurrent agent environments | Provisioning latency, memory footprint | Ephemeral worktrees provision $>50\text{x}$ faster with 0 daemon overhead |
-| **H14: Mutex Contention** | Concurrency Strategy (Worktree Isolation vs. Shared File Mutex) | 4 concurrent agents on shared files | Lock wait time, dirty branch mutations | Naive mutex exhibits deadlock and leaves dirty working copy |
-| **H15: Massive Concurrency Scale** | Concurrency Limits (10 vs. 50 Concurrent Worktrees) | 50 concurrent agents on SQLite WAL | SQLite write throughput, file handle exhaustion | Clean serialization without database lock timeouts |
-| **H16: Monorepo Cross-DAG** | Dependency Topology (Single Project vs. Monorepo Diamond DAG) | Multi-package workspace dependencies | Artifact build order, dependency unblocking | 100% ordering fidelity, zero premature compilation |
+| **H1: 1:1:1 Invariant** | Isolation Strategy (Shared Working Copy vs. Ephemeral Worktrees) | 3+ concurrent agents editing related modules | Working copy cleanliness, worktree stomping | 100% isolation; zero workspace stomping; dedicated branch per agent |
+| **H2: Waymark Continuity** | Continuity Mechanism (Cold Re-read vs. Waymark Trajectory) | Identical compaction trigger, same target codebase | Tokens consumed to resume, exploration hops | $\ge 75\%$ token reduction with Waymark (<216 tokens) |
+| **H3: Sub-5ms Orchestration** | Dispatcher Architecture (Linear vs. Kahn Topological Sort) | 12-task dependency graph with critical path | Scheduler latency even at 50 workers | $<5\text{ms}$ dispatch latency |
+| **H4: Fail-Closed Quarantine** | Merge Protocol (Direct Merge vs. Sequential Quarantine) | Intentionally conflicting edits across 2+ tasks | Integrity of `main`, rollback execution | `main` remains 100% pristine; conflicted worktree quarantined |
+| **H5: Zero-Daemon Dead Worker Recovery** | Lease Reclaim (Passive timeout vs. Active OS Signal `kill(pid,0)`) | Killed agent process with active lease | Dead PID detection, lease reclamation | Lease reclaimed; task reset to `READY` |
+| **H6: Stale Heartbeat Recovery** | Heartbeat Monitoring (None vs. Timeout-based) | Alive worker with frozen heartbeat | Heartbeat timeout recovery with alive PID | Stale lease expired and task reset |
+| **H7: Semantic Correctness** | Code Generation Protocol (Unguided vs. Strict AST Schema) | Syntax & interface mutation tasks | AST schema validity, test pass rate | 100% valid AST nodes, zero syntax regressions |
+| **H8: High-Concurrency WAL Serialization** | Worker Concurrency (3 vs. 10 vs. 50 Concurrent Worktrees) | High-concurrency parallel tasks | SQLite locked errors, sequential commits | Zero SQLite locked errors across all workers |
+| **H9: Kahn DAG Sort & Cycle Rejection** | Dependency Validation (Unchecked vs. DFS Cycle Rejection) | Cyclic dependency graph ($A \to B \to C \to A$) | Cycle rejection latency, graph corruption | Immediate cycle rejection with diagnostic path |
+| **H10: Atomic Task Lease Acquisition** | Concurrency Control (Naive read-check vs. SQLite `BEGIN IMMEDIATE`) | High-contention race on single ready task | Duplicate lease count, lease collisions | Exactly 1 worker wins lease; 0 duplicate claims |
+| **H11: Crash Safety & Merge Rollback** | Interruption Resilience (Standard merge vs. Atomic transaction) | Mid-merge conflict interruption | Dirty worktree state, working tree cleanliness | 100% clean rollback to pristine base state |
+| **H12: Transaction Rollback Recovery** | Transaction Integrity (Unchecked write vs. Atomic rollback) | Forced transaction failure | Database corruption, task rollback status | Graceful rollback, task remains recoverable |
+| **H13: Worktree vs Container Efficiency** | Isolation Mechanism (Docker Container vs. Ephemeral Worktree) | 3 concurrent agent environments | Provisioning latency, memory footprint | Ephemeral worktrees provision $>50\text{x}$ faster |
+| **H14: Worktree vs Naive Mutex** | Concurrency Strategy (Worktree Isolation vs. Shared File Mutex) | 4 concurrent agents on shared files | Lock wait time, dirty branch mutations | Naive mutex exhibits contention; worktrees 0 |
+| **H15: Monorepo Diamond DAG** | Dependency Topology (Single Project vs. Monorepo Diamond DAG) | Multi-package workspace dependencies | Artifact build order, dependency unblocking | 100% ordering fidelity |
+| **H16: Upstream Main Drift** | Synchronization Protocol (None vs. 3-Way Rebase) | Concurrent upstream commits during branch work | Data loss, merge cleanliness | Concurrent rebase preserving upstream work |
 
 ---
 
@@ -91,10 +91,11 @@ Scientific evaluation requires **deterministic repeatability** for continuous in
   (<5ms, CI)         (Protocol fidelity)     (Live LLM agent)   Process Pool
 ```
 
-### Tier 1: Deterministic Simulator
-- Seeded pseudo-random generator (Mulberry32 with seed `0x6D2B79F5`).
-- Pre-recorded tool call traces and AST mutation fixtures.
-- Sub-5 millisecond execution time across all 18 scenarios.
+### Tier 1: Live Arbiter Engine (DeterministicAdapter)
+- Executes real Arbiter WorktreeManager, TaskGraph, MergeQueue, LeaseWatchdog, and ArbiterDatabase.
+- Provisions real ephemeral Git worktrees, feature branches, and SQLite WAL transactions for Git-intensive scenarios.
+- Lightweight in-memory database operations for graph, lease, and continuity scenarios.
+- Deterministic scenario ordering with real wall-clock timing across all 22 scenarios.
 - Zero external API dependencies; runs seamlessly on Linux, macOS, and Windows CI.
 
 ### Tier 1.5: Subprocess MCP Adapter

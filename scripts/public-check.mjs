@@ -16,7 +16,7 @@ const checks = [
   { name: "local-path", pattern: /(?:^|[\s"'`])(?:[A-Za-z]:[\\/]+Users[\\/]+|\\\\[^\s"'`]+|\/(?:Users|home)\/)[^\s"'`]+/iu },
 ];
 
-const externalDepPattern = /(?:import\s+(?:[\w*\s{},]*from\s+)?|require\(\s*)['"](?!node:|arbiter|[./\\])([^'"]+)['"]/u;
+const externalDepPattern = /(?:import\s+(?:[\w*\s{},]*from\s+)?|require\(\s*)['"](?!node:|arbiter|@dqbd\/tiktoken|[./\\])([^'"]+)['"]/u;
 
 const findings = [];
 for (const relative of files) {

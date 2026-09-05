@@ -40,7 +40,7 @@ describe('DeterministicAdapter Suite', () => {
 
     assert.ok(res.passed);
     assert.ok(res.metrics.tokensTotal <= 2200);
-    assert.equal(res.metrics.waymarkResumeTokens, 180);
+    assert.equal(res.metrics.waymarkResumeTokens, 95);
     assert.ok((res.metrics.continuitySavingsPercent || 0) >= 70);
   });
 

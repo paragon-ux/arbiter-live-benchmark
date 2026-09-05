@@ -6,6 +6,7 @@ import { BaseScenario, ScenarioResult } from '../types.js';
 import { MetricsCollector } from '../metrics.js';
 import { createTempGitRepo } from '../gitHelper.js';
 import { ArbiterDatabase } from 'arbiter';
+import { countTokens } from '../tokens.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +71,9 @@ export class SubprocessMcpAdapter {
       collector.setDetail('taskMerged', mcpResult.completed);
       collector.setMainValidity(mcpResult.completed);
       collector.setAccuracy(100);
-      collector.addTokens(1500);
+      const featureFile = path.join(mcpResult.worktreePath, 'src', 'mcp_feature.ts');
+      const featureContent = fs.existsSync(featureFile) ? fs.readFileSync(featureFile, 'utf8') : '';
+      collector.addTokens(countTokens(featureContent) + countTokens(JSON.stringify(mcpResult)) + 800);
 
       const metrics = collector.finish();
       const count = (scenario.workersCount as number) || (scenario.concurrency as number) || 1;

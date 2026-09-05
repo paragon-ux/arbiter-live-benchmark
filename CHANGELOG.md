@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] — 2026-09-04
+
+### Breaking Changes
+- Scenario 017 (50-worker) now provisions all 50 real Git worktrees (previously capped at 10). SLA widened from 18,000ms to 120,000ms to reflect actual 50-worker workload.
+- Scenario 014 relabeled from "Disk-Full (ENOSPC)" to "SQLite Transaction Rollback Recovery" to accurately reflect test scope.
+
+### Added
+- **Native Rust kernel** (`crates/arbiter-kernel`): In-process `libgit2` bindings via N-API for `kernel_checkout`, `kernel_worktree_add`, and `kernel_delete_branch`. Eliminates ~200ms/call Windows `git.exe` spawn overhead.
+- **Native kernel path resolution**: Uses `import.meta.url`-relative resolution instead of `process.cwd()`, fixing silent fallback to CLI when Arbiter is consumed as a dependency.
+- **Memoized merge checkout**: `MergeQueue` tracks `currentCheckedOutBranch` to skip redundant `git checkout main` calls during batch merges.
+- Scenario 015 Docker baseline now reports `measurementSource: "LIVE_MEASUREMENT"` or `"CALIBRATED_REFERENCE"` to transparently indicate whether Docker was available.
+- Scenario 012 detail field corrected from `signalCaught: 'SIGTERM'` to `interruptType: 'MERGE_CONFLICT_ABORT'` for accuracy.
+
+### Fixed
+- Native kernel binary discovery failed when benchmark consumed Arbiter via `file:../Arbiter` dependency (root cause of v1.2.0→v2.0.0 latency regression).
+- Redundant `git branch -D` CLI spawn before native kernel availability check in `worktreeManager.ts`.
+- 49 redundant `Already on 'main'` checkout operations in 50-worker merge queue.
+
+### Performance
+- Scenario 009 (10 workers): 22,341ms → 7,932ms (**-64.5%**).
+- Scenario 017 (50 workers): 108,161ms → 81,738ms (**-24.4%**).
+- Full 22-scenario suite: 166,700ms → 114,964ms (**-31.0%**).
+
+### Documentation
+- Rationale.MD: Corrected Tier 1 description from "seeded replay simulator" to "live Arbiter engine" to match actual code behavior.
+- BENCHMARK_AUTHORING.md: Corrected Tier 1 description and PRNG determinism rules.
+- Reconciled H1-H16 hypothesis labels across Rationale.MD and BENCHMARK_AUTHORING.md.
+- Updated README results table to match BASELINE_v2.0.0.json measured values.
+
+---
+
 ## [1.2.0] — 2026-09-04 ("Empirical Token Calibration & Protocol Boundary Hardening")
 
 ### Added

@@ -80,6 +80,7 @@ export interface LeaseCollisionDetails {
 
 export interface SignalInterruptedDetails {
   signalCaught: string;
+  interruptType?: string;
   rollbackCommand: string;
   quarantinedWorktree: string;
 }
@@ -99,6 +100,7 @@ export interface DiskFullDetails {
 
 export interface DockerOverheadDetails {
   dockerDaemonAvailable: boolean;
+  measurementSource?: string;
   coordinationStrategy: string;
   containerStartupLatencyMs: number;
   worktreeLatencyMs: number;
