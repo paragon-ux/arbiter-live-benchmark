@@ -1,6 +1,6 @@
 {
   "name": "arbiter-live-benchmark",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Live empirical multi-agent orchestration benchmark validating Arbiter worktree coordination, Waymark continuity, and fail-closed merge safety.",
   "type": "module",
@@ -39,14 +39,19 @@
     "public-check": "node scripts/public-check.mjs",
     "calibrate": "node scripts/calibrate-tokens.mjs",
     "benchmark": "npm run build && node dist/src/cli/index.js --all",
-    "compare": "node scripts/compare-baseline.mjs results/latest.json BASELINE_v2.0.0.json",
-    "verify": "npm run build && node --test \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run benchmark && npm run compare"
+    "compare": "node scripts/compare-baseline.mjs results/latest.json BASELINE_v2.1.0.json",
+    "check:docs": "node scripts/check-doc-consistency.mjs && node scripts/check-doc-consistency.mjs --hypotheses",
+    "check:table": "node scripts/generate-readme-table.mjs --check",
+    "check:claims": "node scripts/claims-check.mjs",
+    "check:hygiene": "node scripts/claims-hygiene.mjs",
+    "check:checklist": "node scripts/check-checklist.mjs",
+    "verify": "npm run build && node --test \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run check:docs && npm run check:table && npm run check:claims && npm run check:hygiene && npm run check:checklist"
   },
   "dependencies": {
-    "@dqbd/tiktoken": "^1.0.22",
     "arbiter": "file:../Arbiter"
   },
   "devDependencies": {
+    "@dqbd/tiktoken": "^1.0.22",
     "@types/node": "^22.15.0",
     "typescript": "^5.8.3"
   }

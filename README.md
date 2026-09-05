@@ -24,6 +24,7 @@
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
+<!-- BEGIN:RESULTS_TABLE -->
 | Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`001-single-agent-cold`** | Cold Exploration Baseline | ~961ms | 2,500ms | 7,249 | 0 | 85% | ✅ PASS |
@@ -33,13 +34,13 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 | **`005-dag-dependencies`** | 12-Task Topological DAG | ~347ms | 600.0ms | N/A | 0 | **100%** | ✅ PASS |
 | **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~1,753ms | 4,000ms | N/A | 1 (1 resolved) | **96%** | ✅ PASS |
 | **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~218ms | 500.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`008-agent-semantic-correctness`**| Typecheck & Test Pass Rate | ~790ms | 2,000ms | 449 | 0 | **100%** | ✅ PASS |
+| **`008-agent-semantic-correctness`** | Typecheck & Test Pass Rate | ~790ms | 2,000ms | 449 | 0 | **100%** | ✅ PASS |
 | **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~10,328ms | 25,000ms | 4,860 | 0 | **100%** | ✅ PASS |
-| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~91.6ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
-| **`011-concurrent-lease-collision`**| Atomic CAS Lease & Unique Index | ~116ms | 300.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~91.5ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`011-concurrent-lease-collision`** | Atomic CAS Lease & Unique Index | ~116ms | 300.0ms | N/A | 0 | **100%** | ✅ PASS |
 | **`012-signal-interrupted-merge`** | Active Merge Rollback | ~1,008ms | 2,500ms | N/A | 1 (1 resolved) | **98%** | ✅ PASS |
 | **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~7.7ms | 50.0ms | 213 | 0 | **99%** | ✅ PASS |
-| **`014-disk-full-recovery`** | SQLite Transaction Rollback | ~89.9ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | ~89.9ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
 | **`015-docker-isolated-overhead`** | Host Process/Docker Overhead | ~266ms | 1,200ms | 1,011 | 0 | **98%** | ✅ PASS |
 | **`016-naive-mutex-contention`** | Naive Mutex Contention | ~38.8ms | 150.0ms | 1,116 | 2 (0 resolved) | 58% | ✅ PASS |
 | **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~67,758ms | 120,000ms | 21,450 | 0 | **98%** | ✅ PASS |
@@ -48,6 +49,7 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 | **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~1,286ms | 3,000ms | 562 | 0 | **100%** | ✅ PASS |
 | **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,014ms | 2,500ms | 1,043 | 0 | **100%** | ✅ PASS |
 | **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~39.9ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
+<!-- END:RESULTS_TABLE -->
 
 **Total Suite Duration:** ~105s (live Git worktrees & on-disk SQLite WAL) | **Memory Heap:** ~6.6 MB | **Tokenizer:** Compiled @dqbd/tiktoken cl100k_base BPE
 

@@ -1,6 +1,6 @@
 {
   "id": "014-disk-full-recovery",
-  "title": "SQLite Transaction Rollback & Lease Recovery",
+  "title": "SQLite Transaction Rollback Recovery",
   "description": "Verifies SQLite transaction rollback semantics: forces a transaction failure via explicit ROLLBACK, asserts zero orphaned events in the database, and confirms clean task lease release. Tests database integrity under forced abort conditions using an in-memory database.",
   "targetRepo": "targets/data-pipeline",
   "mode": "fault_injection",

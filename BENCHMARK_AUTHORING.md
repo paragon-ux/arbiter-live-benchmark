@@ -8,28 +8,28 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 
 | Scenario ID | Title | Tier | Category | Focus / Failure Mode |
 | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Single Agent Cold Exploration | Tier 1 / 1.5 / 2 | Core Continuity | Cold exploration baseline after context compaction (~7,120 tokens). |
+| **`001-single-agent-cold`** | Single Agent Cold Exploration (Baseline) | Tier 1 / 1.5 / 2 | Core Continuity | Cold exploration baseline after context compaction (~7,120 tokens). |
 | **`002-single-agent-waymark`** | Single Agent Waymark In-Flight Continuity | Tier 1 / 1.5 / 2 | Core Continuity | In-flight continuity resume (<216 tokens, >75% token reduction). |
-| **`003-parallel-no-isolation`** | Parallel Chaos Baseline (No Isolation) | Tier 1 / 1.5 / 2 | Chaos / Isolation | Uncoordinated concurrent agents stomping shared working directory. |
+| **`003-parallel-no-isolation`** | Parallel Multi-Agent Chaos (No Isolation Baseline) | Tier 1 / 1.5 / 2 | Chaos / Isolation | Uncoordinated concurrent agents stomping shared working directory. |
 | **`004-parallel-arbiter`** | Parallel Multi-Agent Arbiter Worktree Swarm | Tier 1 / 1.5 / 2 | Workspace Isolation | 3 concurrent agents on dedicated ephemeral worktrees with sequential merge. |
 | **`005-dag-dependencies`** | DAG Task Scheduling & Dependency Unblocking | Tier 1 / 1.5 / 2 | Orchestration | 12-task dependency graph resolved via Kahn topological sort. |
-| **`006-conflict-quarantine`** | Merge Conflict Fail-Closed Quarantine | Tier 1 / 1.5 / 2 | Safety & Rollback | Overlapping edits triggering fail-closed rollback (`git merge --abort`). |
-| **`007-watchdog-dead-worker`** | Zero-Daemon Watchdog Dead PID Recovery | Tier 1 / 1.5 / 2 | Process Resilience | Dead worker PID detection via `process.kill(pid, 0)` and lease reclamation. |
-| **`008-agent-semantic-correctness`** | Agent Semantic Correctness & Typecheck | Tier 1 / 1.5 / 2 | Code Quality | Refactoring validated against `tsc --noEmit` and 100% unit tests. |
-| **`009-parallel-10-workers`** | High-Concurrency Swarm (10 Workers) | Tier 1 / 1.5 / 2 | Concurrency Scale | 10 concurrent agent workers stressing SQLite WAL write serialization. |
-| **`010-cyclic-dag-rejection`** | Cyclic DAG Dependency Rejection | Tier 1 / 1.5 / 2 | Graph Validation | Immediate cycle detection and rejection with clean rollback. |
-| **`011-concurrent-lease-collision`** | Concurrent Lease Collision & EAGAIN | Tier 1 / 1.5 / 2 | Race Condition | High-contention race condition testing task lease acquisition atomicity. |
-| **`012-signal-interrupted-merge`** | Signal-Interrupted Merge Rollback | Tier 1 / 1.5 / 2 | Crash Recovery | Mid-merge `SIGTERM` interrupt testing fail-closed rollback. |
-| **`013-waymark-multi-compaction`** | Multi-Compaction Trajectory Stability | Tier 1 / 1.5 / 2 | Continuity Durability | Durability of Waymark in-flight continuity across sequential compactions. |
+| **`006-conflict-quarantine`** | Merge Conflict Fail-Closed Rollback & Quarantine | Tier 1 / 1.5 / 2 | Safety & Rollback | Overlapping edits triggering fail-closed rollback (`git merge --abort`). |
+| **`007-watchdog-dead-worker`** | Zero-Daemon Watchdog Dead PID Lease Recovery | Tier 1 / 1.5 / 2 | Process Resilience | Dead worker PID detection via `process.kill(pid, 0)` and lease reclamation. |
+| **`008-agent-semantic-correctness`** | Agent Semantic Correctness & Typecheck (Refactoring) | Tier 1 / 1.5 / 2 | Code Quality | Refactoring validated against `tsc --noEmit` and 100% unit tests. |
+| **`009-parallel-10-workers`** | High-Concurrency Multi-Agent Swarm (10 Workers) | Tier 1 / 1.5 / 2 | Concurrency Scale | 10 concurrent agent workers stressing SQLite WAL write serialization. |
+| **`010-cyclic-dag-rejection`** | Cyclic DAG Dependency Rejection & Rollback | Tier 1 / 1.5 / 2 | Graph Validation | Immediate cycle detection and rejection with clean rollback. |
+| **`011-concurrent-lease-collision`** | Concurrent Task Lease Collision & EAGAIN Backoff | Tier 1 / 1.5 / 2 | Race Condition | High-contention race condition testing task lease acquisition atomicity. |
+| **`012-signal-interrupted-merge`** | Signal-Interrupted Merge Fail-Closed Rollback (SIGTERM) | Tier 1 / 1.5 / 2 | Crash Recovery | Mid-merge `SIGTERM` interrupt testing fail-closed rollback. |
+| **`013-waymark-multi-compaction`** | Multi-Compaction Trajectory Stability (3 Cycles) | Tier 1 / 1.5 / 2 | Continuity Durability | Durability of Waymark in-flight continuity across sequential compactions. |
 | **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | Tier 1 / 1.5 / 2 | Storage Resilience | Graceful transaction rollback and lease cleanup on forced transaction abort. |
-| **`015-docker-isolated-overhead`** | Docker Containerization Overhead | Tier 3 (Docker) | Comparative Overhead | Quantifies container spin-up and teardown latency overhead vs. worktrees. |
-| **`016-naive-mutex-contention`** | Naive Mutex Contention & Starvation | Tier 3 (Naive Mutex)| Comparative Baseline | Negative baseline measuring lock contention, starvation, and deadlock. |
-| **`017-parallel-50-workers`** | Massive Concurrency Scale (50 Workers) | Tier 1 / 1.5 / 2 | Concurrency Limits | 50 concurrent agents stressing WAL concurrency and OS file handle limits. |
-| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-Package DAG | Tier 1 / 1.5 / 2 | Monorepo DAG | Diamond dependency resolution across shared packages in a workspace. |
-| **`019-n-way-merge-conflicts`** | N-Way Concurrent Merge Conflict Quarantine | Tier 1 / 1.5 / 2 | Conflict Isolation | 5 concurrent workers (2 clean, 3 colliding); quarantines colliders and keeps main intact. |
-| **`020-concurrent-main-drift`** | Concurrent Upstream Main Drift Rebase | Tier 1 / 1.5 / 2 | Upstream Sync | Injected upstream commits during branch work; 3-way synchronization without data loss. |
-| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary Resilience | Tier 1.5 (Subprocess)| Protocol Interface | Stdio JSON-RPC 2.0 tool calls, schema enforcement, and protocol error isolation. |
-| **`022-watchdog-heartbeat-stale-reclaim`**| Watchdog Stale Heartbeat Lease Reclaim | Tier 1 / 1.5 / 2 | Process Resilience | Recovers leases when worker PID is alive but heartbeat timed out (frozen/partitioned). |
+| **`015-docker-isolated-overhead`** | Docker Containerization Overhead Comparative Baseline | Tier 3 (Docker) | Comparative Overhead | Quantifies container spin-up and teardown latency overhead vs. worktrees. |
+| **`016-naive-mutex-contention`** | Naive Mutex Contention & Starvation Comparative Baseline | Tier 3 (Naive Mutex)| Comparative Baseline | Negative baseline measuring lock contention, starvation, and deadlock. |
+| **`017-parallel-50-workers`** | High-Concurrency Multi-Agent Swarm (50 Workers) | Tier 1 / 1.5 / 2 | Concurrency Limits | 50 concurrent agents stressing WAL concurrency and OS file handle limits. |
+| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-Package DAG Resolution | Tier 1 / 1.5 / 2 | Monorepo DAG | Diamond dependency resolution across shared packages in a workspace. |
+| **`019-n-way-merge-conflicts`** | N-Way Concurrent Merge Conflict & Worktree Quarantine | Tier 1 / 1.5 / 2 | Conflict Isolation | 5 concurrent workers (2 clean, 3 colliding); quarantines colliders and keeps main intact. |
+| **`020-concurrent-main-drift`** | Concurrent Upstream Main Drift & Auto-Rebase Synchronization | Tier 1 / 1.5 / 2 | Upstream Sync | Injected upstream commits during branch work; 3-way synchronization without data loss. |
+| **`021-mcp-protocol-resilience`** | Tier 1.5 Subprocess MCP Protocol Boundary & Tool Calling Resilience | Tier 1.5 (Subprocess)| Protocol Interface | Stdio JSON-RPC 2.0 tool calls, schema enforcement, and protocol error isolation. |
+| **`022-watchdog-heartbeat-stale-reclaim`**| Watchdog Stale Heartbeat Detection & Fault-Tolerant Task Recovery | Tier 1 / 1.5 / 2 | Process Resilience | Recovers leases when worker PID is alive but heartbeat timed out (frozen/partitioned). |
 
 ---
 
@@ -72,8 +72,8 @@ Every scenario fixture lives in `scenarios/<id>.json` and must adhere to the fol
 
 To preserve reproducible regression verification on CI:
 1. **Deterministic Scenario Ordering**: Scenarios execute in fixed ID order (001→022) with consistent configuration.
-2. **Seeded PRNG (where applicable)**: Use the `SeededRNG` instance (Mulberry32 with seed `0x6D2B79F5`) for any randomized selection within scenarios. Never use `Math.random()` or unseeded `crypto.randomBytes()`.
-3. **Timing Variance**: Scenarios that perform real Git I/O will produce varying `durationMs` across runs. Non-timing fields (pass/fail, token counts, accuracy) should remain stable across runs on the same platform.
+2. **Metric Determinism & Wall-Clock Timing**: Structural and token metrics (pass/fail status, accuracy percentage, branch validity, token consumption) are deterministic across runs. Timing metrics (`durationMs`) measure real wall-clock performance via `performance.now()` and live Git operations, and are subject to hardware variance.
+3. **Timing Variance**: Scenarios that perform real Git I/O will produce varying `durationMs` across runs. Non-timing fields (pass/fail, token counts, accuracy) remain stable across runs on the same platform.
 
 ---
 

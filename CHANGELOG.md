@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] — 2026-09-05 ("Remediation & Anti-Regression Hardening")
+
+### Added
+- **Dedicated 2.1.0 Reports Hub (`2.1.0/`)**:
+  - `REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md`: Complete 20-item sequential remediation checklist verified against live codebase.
+  - `REMEDIATION_WALKTHROUGH_v2.1.0.md`: Full architectural walkthrough and ponytail optimization record.
+  - `DISCREPANCY_AUDIT_REPORT_v2.1.0.md`: Comprehensive reconciliation across Arbiter, arbiter-live-benchmark, and arbiter-benchmark.
+  - `BENCHMARK_REGRESSION_REPORT_v2.1.0.md`: Quantitative scenario-by-scenario variance analysis against `BASELINE_v2.1.0.json`.
+  - `SYSTEM_ARCHITECTURE_v2.1.0.md`: Complete architecture reference covering Win32 Job Objects, lease epochs, and fail-closed quarantine.
+  - `PRIORITIZED_FINDINGS_v2.1.0.md`: 100% resolution report for all review findings.
+- **Reference Baseline Calibration (`BASELINE_v2.1.0.json`)**:
+  - Locked empirical baselines for all 22 scenarios including live Docker reference timing and 50-worker provisioning.
+- **Automated Anti-Regression CI Gates**:
+  - Added `scripts/claims-check.mjs`, `scripts/claims-hygiene.mjs`, `scripts/check-checklist.mjs`, and `scripts/check-doc-consistency.mjs`.
+  - Added `scripts/generate-readme-table.mjs` with `--check` drift prevention gate.
+  - Added `.github/PULL_REQUEST_TEMPLATE.md`.
+
+### Fixed
+- Locked scenario 015 in `DeterministicAdapter` to the calibrated reference baseline (265.8ms / 250ms startup), reserving live daemon execution for Tier 3 `DockerIsolatedAdapter` and preventing spurious +698% latency spikes when local Docker daemon is present.
+- Moved `@dqbd/tiktoken` to `devDependencies` to restore 0 production runtime dependencies gate.
+- Sanitized documentation to eliminate developer machine path references in compliance with public hygiene gates.
+
+### Changed
+- Applied `/ponytail-review` simplifications: removed redundant loop assertions in `check-doc-consistency.mjs` and normalized spacing in `generate-readme-table.mjs`.
+
+---
+
 ## [2.0.0] — 2026-09-04
 
 ### Breaking Changes

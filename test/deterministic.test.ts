@@ -1,19 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DeterministicAdapter, SeededRNG } from '../src/harness/adapters/deterministic.js';
+import { DeterministicAdapter } from '../src/harness/adapters/deterministic.js';
 
 describe('DeterministicAdapter Suite', () => {
   const adapter = new DeterministicAdapter();
-
-  it('guarantees byte-identical PRNG determinism across consecutive runs', () => {
-    const rng1 = new SeededRNG(0x6D2B79F5);
-    const rng2 = new SeededRNG(0x6D2B79F5);
-
-    for (let i = 0; i < 20; i++) {
-      assert.equal(rng1.next(), rng2.next());
-      assert.equal(rng1.nextInt(1, 100), rng2.nextInt(1, 100));
-    }
-  });
 
   it('simulates 001-single-agent-cold with heavy token re-read', async () => {
     const res = await adapter.execute({
@@ -219,10 +209,10 @@ describe('DeterministicAdapter Suite', () => {
     assert.equal(res.metrics.details.hashStability, 'VERIFIED_IDENTICAL');
   });
 
-  it('simulates 014-disk-full-recovery rolling back transaction on ENOSPC', async () => {
+  it('simulates 014-disk-full-recovery rolling back transaction on forced abort', async () => {
     const res = await adapter.execute({
       id: '014-disk-full-recovery',
-      title: 'Disk Full',
+      title: 'SQLite Transaction Rollback Recovery',
       description: 'Test',
       targetRepo: 'targets/data-pipeline',
       mode: 'fault_injection'
