@@ -7,8 +7,8 @@ This guide provides a rapid, practical walkthrough for authoring, implementing, 
 ## 📋 4-Step Authoring Checklist
 
 1. **Create Scenario JSON**: Define parameters, tasks, and expected invariants in `scenarios/NNN-<name>.json`.
-2. **Implement Adapter Logic**: Add deterministic handler in `src/harness/adapters/deterministic.ts`.
-3. **Add Verification Test**: Add unit test in `test/deterministic.test.ts`.
+2. **Implement Adapter Logic**: Add scenario handler in `src/harness/adapters/subprocessMcp.ts` using live worker subprocesses.
+3. **Add Verification Test**: Add unit test in `test/live-subprocess-worker.test.ts`.
 4. **Validate Schema & Invariants**: Run `npm test` and update the Hypothesis Correlation Matrix.
 
 ---
@@ -51,7 +51,7 @@ Create `scenarios/023-example-scenario.json`:
 
 ## 🛠️ Adapter Implementation Pattern
 
-In `src/harness/adapters/deterministic.ts`:
+In `src/harness/adapters/subprocessMcp.ts`:
 
 1. Add switch case:
 ```typescript

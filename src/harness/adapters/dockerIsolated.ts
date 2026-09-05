@@ -1,6 +1,9 @@
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import os from 'node:os';
 import { BaseScenario, ScenarioResult } from '../types.js';
 import { countTokens } from '../tokens.js';
+import { createTempGitRepo } from '../gitHelper.js';
 
 /**
  * DockerIsolatedAdapter — Tier 3 Comparative Container Isolation Baseline
@@ -83,7 +86,20 @@ export class DockerIsolatedAdapter {
     const durationMs = performance.now() - startTime;
     const accuracy = concurrency > 0 ? Math.round((successfulContainers / concurrency) * 100) : 0;
     const passed = successfulContainers === concurrency;
-    const worktreeEquivMs = 4.2;
+    // Measure live worktree creation overhead on the host for direct empirical comparison
+    let worktreeEquivMs = 2.0;
+    try {
+      const { repoPath: tempRepo, cleanup: cleanupTemp } = createTempGitRepo();
+      try {
+        const wtStart = performance.now();
+        const tempWt = path.join(os.tmpdir(), `wt-bench-${Date.now()}`);
+        execFileSync('git', ['worktree', 'add', tempWt, 'main'], { cwd: tempRepo, windowsHide: true });
+        worktreeEquivMs = Math.max(0.1, performance.now() - wtStart);
+        try { execFileSync('git', ['worktree', 'remove', tempWt, '--force'], { cwd: tempRepo, windowsHide: true }); } catch {}
+      } finally {
+        cleanupTemp();
+      }
+    } catch {}
     const overheadRatio = Number((containerDurationMs / worktreeEquivMs).toFixed(1));
 
     return {

@@ -49,7 +49,7 @@ describe('MetricsCollector Suite', () => {
 
   it('enforces discriminated type-safety via TypedScenarioResult and ScenarioDetailsMap', () => {
     // Compile-time & runtime assertion that TypedScenarioResult maps correctly
-    const mockNWayResult: import('../src/harness/types.js').TypedScenarioResult<'019-n-way-merge-conflicts'> = {
+    const sampleNWayResult: import('../src/harness/types.js').TypedScenarioResult<'019-n-way-merge-conflicts'> = {
       scenarioId: '019-n-way-merge-conflicts',
       title: 'N-Way Merge Conflicts',
       tier: 'subprocess_mcp',
@@ -70,9 +70,9 @@ describe('MetricsCollector Suite', () => {
       }
     };
 
-    assert.equal(mockNWayResult.scenarioId, '019-n-way-merge-conflicts');
-    assert.equal(mockNWayResult.metrics.details.conflictsQuarantined, 3);
-    assert.equal(mockNWayResult.metrics.details.mainBranchIntact, true);
+    assert.equal(sampleNWayResult.scenarioId, '019-n-way-merge-conflicts');
+    assert.equal(sampleNWayResult.metrics.details.conflictsQuarantined, 3);
+    assert.equal(sampleNWayResult.metrics.details.mainBranchIntact, true);
   });
 });
 

@@ -308,10 +308,12 @@ export class SubprocessMcpAdapter {
 
       const [r1, r2] = await Promise.all([p1, p2]);
       const hasConflict = r1.exitCode !== 0 || r2.exitCode !== 0;
+      const successfulCommits = (r1.exitCode === 0 ? 1 : 0) + (r2.exitCode === 0 ? 1 : 0);
+      const accuracyPercent = Math.round((successfulCommits / 2) * 100);
 
       collector.recordConflict(false);
       collector.setMainValidity(false);
-      collector.setAccuracy(50);
+      collector.setAccuracy(accuracyPercent);
       collector.setDetail('dirtyWorkingTree', true);
       collector.setDetail('clobberedFile', 'src/auth.ts');
       collector.setDetail('isolationPreserved', false);
@@ -917,6 +919,7 @@ export class SubprocessMcpAdapter {
     try {
       const concurrency = 4;
       let contentionCount = 0;
+      let acquiredCount = 0;
 
       await Promise.all(
         Array.from({ length: concurrency }, (_, i) => i + 1).map(async (worker) => {
@@ -926,6 +929,7 @@ export class SubprocessMcpAdapter {
             try {
               fs.writeFileSync(lockFile, `worker-${worker}`, { flag: 'wx' });
               acquired = true;
+              acquiredCount++;
             } catch {
               contentionCount++;
               retries++;
@@ -940,9 +944,10 @@ export class SubprocessMcpAdapter {
         })
       );
 
+      const accuracyPercent = concurrency > 0 ? Math.round((acquiredCount / concurrency) * 100) : 0;
       collector.recordConflict(false);
       collector.setMainValidity(false);
-      collector.setAccuracy(contentionCount > 0 ? 50 : 80);
+      collector.setAccuracy(accuracyPercent);
       collector.setDetail('lockContentionCount', contentionCount);
 
       const metrics = collector.finish();
