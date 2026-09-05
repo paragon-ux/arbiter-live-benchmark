@@ -12,15 +12,11 @@
 
 - [Empirical Results Summary (v2.1.1)](#empirical-results-summary-v211)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
-- [Why Benchmark Multi-Agent Orchestration?](#why-benchmark-multi-agent-orchestration)
-- [The 22 Benchmark Scenarios](#the-22-benchmark-scenarios)
-- [Empirical Token Calibration](#empirical-token-calibration)
+- [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md)
+- [Empirical Token Calibration (Compiled BPE)](#empirical-token-calibration-compiled-bpe)
 - [Three-Tier Execution Architecture](#three-tier-execution-architecture)
-- [Statistical Multi-Trial Engine](#statistical-multi-trial-engine)
-- [Realistic Target Codebases](#realistic-target-codebases)
 - [Quick Start & CLI Reference](#quick-start--cli-reference)
-- [Multi-OS CI Parity & Verification](#multi-os-ci-parity--verification)
-- [Zero Runtime Dependencies](#zero-runtime-dependencies)
+- [Runtime Dependencies & Zero-Dependency Core](#runtime-dependencies--zero-dependency-core)
 
 ---
 
@@ -138,6 +134,10 @@ npm run calibrate
 | • ProcessPoolAdapter: Worker process pool without worktree filesystem isolation |
 +-------------------------------------------------------------------------------+
 ```
+
+> [!NOTE]
+> **Independent Reviewer Guidance & Live API Verification**:
+> For a rigorous analysis on why OS child processes satisfy the zero-simulation mandate, why default cloud LLM API calls are avoided in CI to prevent network jitter/rate limits, and instructions for independent reviewers to verify with their own live API keys, see [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md).
 
 ---
 
