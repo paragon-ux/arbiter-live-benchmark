@@ -249,7 +249,7 @@ export class AgyAgentAdapter {
             outputTokens: agyResult.usage?.output_tokens || 0,
             thinkingTokens: agyResult.usage?.thinking_tokens || 0,
             cacheReadTokens: agyResult.usage?.cache_read_tokens || 0,
-            worktreePath,
+            worktreePath: `.arbiter/worktrees/${taskId}`,
             typeErrors,
             unitTestsPassed: testsPassed,
             unitTestsTotal: testsTotal,

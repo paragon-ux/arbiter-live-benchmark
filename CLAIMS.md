@@ -40,3 +40,12 @@
   }
 ]
 ```
+
+## Live Frontier Execution Verification (Tier 2: Google Gemini)
+
+In addition to deterministic regression metrics in the registry above, Arbiter verifies live frontier LLMs:
+
+- **Live Model Orchestration**: In Tier 2 (`--mode agy`), Arbiter provisions isolated Git worktrees, assigns tasks, launches Google Gemini via `agy`, executes TypeScript refactoring, runs test suites, and merges branches into `main`.
+- **Token Extraction**: Token consumption is extracted directly from the provider API response payload (e.g. 47,928 total tokens for scenario `008-agent-semantic-correctness`).
+- **Fail-Fast Integrity**: If the external CLI (`agy`) is not installed or available in `PATH`, the harness immediately aborts with `[AGY_NOT_AVAILABLE]` and exits 1, ensuring zero silent fallback or masked failures.
+- **Authoritative Receipt**: Recorded in [`results/latest-agy.json`](results/latest-agy.json) and [`results/latest-agy.md`](results/latest-agy.md).

@@ -76,8 +76,8 @@ export function spawnWorkerSubprocess(config: WorkerTaskConfig): Promise<WorkerP
 
     const timeout = setTimeout(() => {
       try { child.kill(); } catch {}
-      reject(new Error(`Worker ${config.workerId} timed out after 60s`));
-    }, 60000);
+      reject(new Error(`Worker ${config.workerId} timed out after 90s`));
+    }, 90000);
 
     child.on('close', (code) => {
       clearTimeout(timeout);

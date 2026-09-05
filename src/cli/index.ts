@@ -90,6 +90,9 @@ Options:
   const resultsDir = path.join(rootDir, 'results');
   fs.mkdirSync(resultsDir, { recursive: true });
   fs.writeFileSync(path.join(resultsDir, 'latest.json'), JSON.stringify(summary, null, 2) + '\n');
+  if (summary.tier === 'agy' || (tier as string) === 'agy') {
+    fs.writeFileSync(path.join(resultsDir, 'latest-agy.json'), JSON.stringify(summary, null, 2) + '\n');
+  }
 
   // Append to historical time-series tracking log
   const historicalEntry = {
@@ -111,12 +114,15 @@ Options:
   };
   fs.appendFileSync(path.join(resultsDir, 'historical.jsonl'), JSON.stringify(historicalEntry) + '\n');
 
+  const report = formatMarkdownReport(summary);
   if (emitJson) {
     console.log(JSON.stringify(summary, null, 2));
   } else {
-    const report = formatMarkdownReport(summary);
     console.log(report);
-    fs.writeFileSync(path.join(resultsDir, 'latest.md'), report + '\n');
+  }
+  fs.writeFileSync(path.join(resultsDir, 'latest.md'), report + '\n');
+  if (summary.tier === 'agy' || (tier as string) === 'agy') {
+    fs.writeFileSync(path.join(resultsDir, 'latest-agy.md'), report + '\n');
   }
 
   if (compareBaseline) {

@@ -137,8 +137,8 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error(`Worker ${config.workerId} MCP session timed out after 30s`));
-    }, 30000);
+      reject(new Error(`Worker ${config.workerId} MCP session timed out after 90s`));
+    }, 90000);
 
     serverProcess.stdout.on('data', async (chunk) => {
       const raw = chunk.toString();

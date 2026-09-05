@@ -11,6 +11,7 @@
 ## Table of Contents
 
 - [Empirical Results Summary (v2.1.1)](#empirical-results-summary-v211)
+  - [Live Frontier Agent Verification (Tier 2: Google Gemini via Antigravity CLI)](#live-frontier-agent-verification-tier-2-google-gemini-via-antigravity-cli)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md)
 - [Empirical Token Calibration (Compiled BPE)](#empirical-token-calibration-compiled-bpe)
@@ -52,6 +53,23 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 <!-- END:RESULTS_TABLE -->
 
 **Total Suite Duration:** ~105s (live Git worktrees & on-disk SQLite WAL) | **Memory Heap:** ~6.6 MB | **Tokenizer:** Compiled @dqbd/tiktoken cl100k_base BPE
+
+### Live Frontier Agent Verification (Tier 2: Google Gemini via Antigravity CLI)
+
+In addition to deterministic CI verification, Arbiter provides native, live driver support for frontier LLMs. Below is the verified live execution receipt of **Google Gemini** executing refactoring inside an Arbiter-isolated Git worktree:
+
+| Scenario | Tier | Duration | LLM Provider | Tokens (Reported by API) | Accuracy | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`008-agent-semantic-correctness`** | **AGY** | **39.1s** | **Google Gemini (via `agy`)** | **47,928** | **100%** | ✅ PASS |
+
+*Reproduce live with your local Antigravity CLI:*
+```bash
+node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode agy
+```
+
+> [!NOTE]
+> **Live Frontier Execution Contract**:
+> Unlike Tier 1.5 which runs deterministic local OS subprocesses for regression testing, Tier 2 connects directly to the frontier model (`agy`). Gemini analyzes the repository, writes TypeScript code into the isolated worktree, compiles via `tsc`, and passes 100% of unit tests before Arbiter merges the branch into `main`. The token count (47,928) is extracted directly from Gemini's API response payload. If the `agy` CLI is not available in `PATH`, the harness fails fast with an explicit error rather than silently degrading.
 
 ---
 
@@ -185,6 +203,9 @@ node dist/src/cli/index.js --all --compare
 
 # Run in Tier 1.5 Subprocess MCP mode (real OS child processes)
 node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode subprocess_mcp
+
+# Run in Tier 2 Live Agent mode (Google Gemini via Antigravity CLI)
+node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode agy
 
 # Run in Tier 3 Comparative Docker mode
 node dist/src/cli/index.js --scenario 015-docker-isolated-overhead --mode docker

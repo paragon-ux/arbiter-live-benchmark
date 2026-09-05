@@ -1,6 +1,8 @@
 node_modules/
 dist/
 results/
+!results/latest-agy.json
+!results/latest-agy.md
 .arbiter/
 .waymark/
 *.log

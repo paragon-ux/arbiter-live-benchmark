@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-09-05T21:44:38.258Z",
+  "nodeVersion": "v22.19.0",
+  "platform": "win32 (x64)",
+  "tier": "agy",
+  "trials": 1,
+  "totalScenarios": 1,
+  "passedScenarios": 1,
+  "failedScenarios": 0,
+  "totalDurationMs": 39208.36,
+  "averageSavingsPercent": 0,
+  "heapUsedMb": 7.82,
+  "results": [
+    {
+      "scenarioId": "008-agent-semantic-correctness",
+      "title": "Agent Semantic Correctness & Typecheck (Refactoring)",
+      "tier": "agy",
+      "passed": true,
+      "metrics": {
+        "durationMs": 39113.92,
+        "tokensTotal": 47928,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "llmProvider": "Google Gemini (Antigravity CLI)",
+          "conversationId": "8b485251-22c3-4b01-b1d9-dcffbc277831",
+          "inputTokens": 46900,
+          "outputTokens": 1028,
+          "thinkingTokens": 0,
+          "cacheReadTokens": 121785,
+          "worktreePath": ".arbiter/worktrees/task-agy-008-agent-semantic-correctness",
+          "typeErrors": 0,
+          "unitTestsPassed": 1,
+          "unitTestsTotal": 1
+        }
+      },
+      "rawDurationMs": 39113.92,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 39113.92,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
