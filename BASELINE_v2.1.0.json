@@ -18,15 +18,15 @@
       "passed": true,
       "metrics": {
         "durationMs": 3640.6,
-        "tokensTotal": 14166,
+        "tokensTotal": 3045,
         "conflictsDetected": 0,
         "conflictsResolved": 0,
         "mainBranchValid": true,
         "accuracyPercent": 100,
         "details": {
           "targetCodebase": "microservice-auth",
-          "fileCountScanned": 53,
-          "bytesScanned": 35862,
+          "fileCountScanned": 13,
+          "bytesScanned": 9953,
           "workerPid": 28656,
           "compactionRecoveryType": "COLD_REREAD"
         },

@@ -7,6 +7,9 @@ import { countTokens } from './tokens.js';
 
 const __dirname = import.meta.dirname;
 const require = createRequire(import.meta.url);
+const rootDir = path.resolve(__dirname, '../../..');
+const rootNodeModules = path.resolve(rootDir, 'node_modules');
+const rootTypesDir = path.resolve(rootNodeModules, '@types');
 
 const tscBin = (() => {
   try {
@@ -15,6 +18,22 @@ const tscBin = (() => {
     return 'tsc';
   }
 })();
+
+function runTsc(worktreePath: string, extraArgs: string[] = []): void {
+  const args = [tscBin, ...extraArgs];
+  if (fs.existsSync(rootTypesDir)) {
+    args.push('--typeRoots', rootTypesDir);
+  }
+  execFileSync(process.execPath, args, {
+    cwd: worktreePath,
+    windowsHide: true,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NODE_PATH: fs.existsSync(rootNodeModules) ? rootNodeModules : process.env.NODE_PATH,
+    },
+  });
+}
 
 export interface WorkerFileOperation {
   path: string;
@@ -229,11 +248,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
               // Real TypeScript compilation if requested
               if (config.runTypecheck) {
                 try {
-                  execFileSync(process.execPath, [tscBin, '--noEmit'], {
-                    cwd: worktreePath,
-                    windowsHide: true,
-                    encoding: 'utf8',
-                  });
+                  runTsc(worktreePath, ['--noEmit']);
                 } catch (err: unknown) {
                   typeErrors++;
                   const stderr = String(err);
@@ -244,11 +259,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
               // Real Node test execution if requested
               if (config.runTests) {
                 try {
-                  execFileSync(process.execPath, [tscBin], {
-                    cwd: worktreePath,
-                    windowsHide: true,
-                    encoding: 'utf8',
-                  });
+                  runTsc(worktreePath);
                 } catch (err: unknown) {
                   typeErrors++;
                   tokensMeasured += countTokens(String(err));
@@ -480,11 +491,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   if (config.runTypecheck) {
     try {
-      execFileSync(process.execPath, [tscBin, '--noEmit'], {
-        cwd: worktreePath,
-        windowsHide: true,
-        encoding: 'utf8',
-      });
+      runTsc(worktreePath, ['--noEmit']);
     } catch {
       typeErrors++;
     }
@@ -492,11 +499,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   if (config.runTests) {
     try {
-      execFileSync(process.execPath, [tscBin], {
-        cwd: worktreePath,
-        windowsHide: true,
-        encoding: 'utf8',
-      });
+      runTsc(worktreePath);
     } catch (err: unknown) {
       typeErrors++;
       tokensMeasured += countTokens(String(err));
@@ -585,7 +588,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const rootDir = path.resolve(__dirname, '../../..');
   const arbiterMcpScript = path.resolve(rootDir, '../Arbiter/dist/src/mcp/index.js');
   const arbiterCliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
 

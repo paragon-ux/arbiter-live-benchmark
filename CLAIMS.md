@@ -1,6 +1,6 @@
 # Benchmark Quantitative Claims Registry
 
-**Document Version:** 2.1.0-PROD  
+**Document Version:** 2.1.1-PROD  
 **Single Source of Truth for Benchmark & Performance Claims**
 
 ```json
@@ -16,7 +16,7 @@
   {
     "claim": "Cold exploration baseline token usage",
     "target": "cold_tokens",
-    "expectedValue": 14160,
+    "expectedValue": 3040,
     "tolerancePercent": 10,
     "generatingCommand": "node -e \"const { execSync } = require('child_process'); const out = JSON.parse(execSync('node --no-warnings dist/src/cli/index.js --scenario 001-single-agent-cold --json', { encoding: 'utf8' })); process.stdout.write(String(out.results[0].metrics.tokensTotal));\"",
     "lastVerifiedDate": "2026-09-05"

@@ -1,6 +1,6 @@
 # Arbiter Live Benchmark: Multi-Agent Orchestration & Continuity Testbed
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
@@ -31,7 +31,7 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 <!-- BEGIN:RESULTS_TABLE -->
 | Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Cold Exploration Baseline | ~3,641ms | 2,500ms | 14,166 | 0 | **100%** | ✅ PASS |
+| **`001-single-agent-cold`** | Cold Exploration Baseline | ~3,641ms | 2,500ms | 3,045 | 0 | **100%** | ✅ PASS |
 | **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~4,850ms | 1,000ms | **744** | 0 | **100%** | ✅ PASS |
 | **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~2,325ms | 200.0ms | N/A | 1 (0 resolved) | 50% | ✅ PASS |
 | **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~9,647ms | 8,000ms | 1,633 | 0 | **100%** | ✅ PASS |

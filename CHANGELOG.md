@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] — 2026-09-05
+
+### Added
+- **Automated Version Registry (`docs/VERSION_REGISTRY.md` & `scripts/bump-version.mjs`)**:
+  - Declarative living version management and validation with `--check` and `<version>` bump CLI.
+  - Wired `check:version` and `bump:version` scripts into `package.json` and verification pipeline.
+
+### Fixed
+- **Cross-Platform Worktree Type Resolution**:
+  - Hardened `runTsc` in `src/harness/workerProcess.ts` with explicit `--typeRoots` and `NODE_PATH` passing root `@types`, resolving compilation across partitioned GitHub Actions runners (Windows drive `D:\` vs `C:\` temp, Linux `/tmp`).
+- **Normalized Cold Exploration Scanner**:
+  - Filtered ephemeral `dist/`, `.arbiter/`, and `.waymark/` directories in `src/harness/tokens.ts` `walk` to guarantee deterministic 13-file 3,045-token cold baseline measurements.
+- **Docker Adapter Assertion Calibration**:
+  - Adjusted container overhead ratio assertion in `test/comparative-adapters.test.ts` to `>= 1` to accommodate GitHub Actions containerization latency variances.
+
 ## [2.1.0] — 2026-09-05 ("Remediation & Anti-Regression Hardening")
 
 ### Added

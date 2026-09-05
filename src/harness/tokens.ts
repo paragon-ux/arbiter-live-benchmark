@@ -44,7 +44,7 @@ export function measureTargetTokens(targetDir: string): { totalTokens: number; f
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === '.git') continue;
+        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist' || entry.name === '.arbiter' || entry.name === '.waymark') continue;
         walk(fullPath);
       } else if (entry.isFile()) {
         const content = fs.readFileSync(fullPath, 'utf8');
