@@ -4,7 +4,7 @@
  * Automated Results Table Generator
  * 
  * Generates and validates the markdown results table in README.md
- * from BASELINE_v2.0.0.json to prevent documentation drift.
+ * from BASELINE_v2.1.0.json to prevent documentation drift.
  * 
  * Usage:
  *   node scripts/generate-readme-table.mjs --check
@@ -124,11 +124,11 @@ function main() {
 
   if (isCheck) {
     if (existingTable.replace(/\r\n/g, '\n') !== cleanGenerated.replace(/\r\n/g, '\n')) {
-      console.error('Drift detected between README.md and BASELINE_v2.0.0.json!');
+      console.error('Drift detected between README.md and BASELINE_v2.1.0.json!');
       console.error('Run node scripts/generate-readme-table.mjs --write to update.');
       process.exit(1);
     }
-    console.log('README results table matches BASELINE_v2.0.0.json (0 drift).');
+    console.log('README results table matches BASELINE_v2.1.0.json (0 drift).');
     process.exit(0);
   }
 
@@ -139,7 +139,7 @@ function main() {
     readmeContent.slice(endIdx);
 
   writeFileSync(readmePath, updatedReadme, 'utf8');
-  console.log('Updated README.md results table from BASELINE_v2.0.0.json.');
+  console.log('Updated README.md results table from BASELINE_v2.1.0.json.');
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -1,12 +1,16 @@
 # Arbiter Live Benchmark: Multi-Agent Orchestration & Continuity Testbed
 
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](package.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
+
 > **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. Validates **>75% token reduction** via Waymark in-flight continuity (<216 tokens vs. ~7,120 cold re-read), **100% isolation fidelity** with zero dirty state on `main`, sub-millisecond DAG scheduling, **<5ms** zero-daemon dead-worker lease recovery, and fail-closed chaos recovery across 22 live scenarios. (Reproduce locally via `npm run verify` or `npm run benchmark`).
 
 ---
 
 ## Table of Contents
 
-- [Empirical Results Summary (v2.0.0)](#empirical-results-summary-v200)
+- [Empirical Results Summary (v2.1.0)](#empirical-results-summary-v210)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Why Benchmark Multi-Agent Orchestration?](#why-benchmark-multi-agent-orchestration)
 - [The 22 Benchmark Scenarios](#the-22-benchmark-scenarios)
@@ -20,7 +24,7 @@
 
 ---
 
-## Empirical Results Summary (v2.0.0)
+## Empirical Results Summary (v2.1.0)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 

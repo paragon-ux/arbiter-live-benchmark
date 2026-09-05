@@ -11,7 +11,7 @@
  * 2. src/harness/adapters/deterministic.ts
  * 3. BENCHMARK_AUTHORING.md
  * 4. README.md
- * 5. BASELINE_v2.0.0.json
+ * 5. BASELINE_v2.1.0.json
  * 
  * Modes:
  *   node scripts/check-doc-consistency.mjs               -> Scenario cross-source parity
