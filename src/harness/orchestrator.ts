@@ -5,6 +5,7 @@ import { SubprocessMcpAdapter } from './adapters/subprocessMcp.js';
 import { NaiveMutexAdapter } from './adapters/naiveMutex.js';
 import { ProcessPoolAdapter } from './adapters/processPool.js';
 import { DockerIsolatedAdapter } from './adapters/dockerIsolated.js';
+import { AgyAgentAdapter } from './adapters/agyAgent.js';
 import { computeStatisticalMetrics, estimateMemoryUsage } from './metrics.js';
 
 export class BenchmarkOrchestrator {
@@ -12,6 +13,7 @@ export class BenchmarkOrchestrator {
   private naiveMutexAdapter = new NaiveMutexAdapter();
   private processPoolAdapter = new ProcessPoolAdapter();
   private dockerIsolatedAdapter = new DockerIsolatedAdapter();
+  private agyAgentAdapter = new AgyAgentAdapter();
 
   loadScenarios(scenariosDir: string, scenarioId?: string): BaseScenario[] {
     const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json')).sort();
@@ -48,7 +50,7 @@ export class BenchmarkOrchestrator {
           console.log(`[TRACE] [${nowIso}] Scenario: ${scenario.id} | Tier: ${tier} | Trial: ${t + 1}/${trials}`);
         }
 
-        const scenarioTimeout = (scenario.timeoutMs as number) || options.timeoutMs || 120_000;
+        const scenarioTimeout = (scenario.timeoutMs as number) || options.timeoutMs || (tier === 'agy' ? 180_000 : 120_000);
         let timer: NodeJS.Timeout | undefined;
         const timeoutPromise = new Promise<ScenarioResult>((_, reject) => {
           timer = setTimeout(() => reject(new Error(`Scenario ${scenario.id} timed out after ${scenarioTimeout}ms`)), scenarioTimeout);
@@ -58,6 +60,7 @@ export class BenchmarkOrchestrator {
           if (tier === 'naive_mutex') return this.naiveMutexAdapter.execute(scenario);
           if (tier === 'process_pool') return this.processPoolAdapter.execute(scenario);
           if (tier === 'docker') return this.dockerIsolatedAdapter.execute(scenario);
+          if (tier === 'agy') return this.agyAgentAdapter.execute(scenario);
           return this.subprocessMcpAdapter.execute(scenario);
         };
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { BenchmarkOrchestrator } from '../harness/orchestrator.js';
 import { formatMarkdownReport } from '../harness/reporter.js';
 import { ExecutionTier } from '../harness/types.js';
+import { AgyAgentAdapter } from '../harness/adapters/agyAgent.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,12 +23,17 @@ async function main(): Promise<void> {
     const arg = args[i];
     if (arg === '--scenario' && args[i + 1]) {
       scenarioId = args[++i];
-    } else if (arg === '--mode' && args[i + 1]) {
-      const m = args[++i];
+    } else if ((arg === '--mode' || arg === '--tier') && args[i + 1]) {
+      const m = args[++i].toLowerCase();
       if (m === 'naive_mutex') tier = 'naive_mutex';
       else if (m === 'process_pool') tier = 'process_pool';
       else if (m === 'docker') tier = 'docker';
-      else tier = 'subprocess_mcp';
+      else if (m === 'agy') tier = 'agy';
+      else if (m === 'subprocess_mcp' || m === 'deterministic') tier = 'subprocess_mcp';
+      else {
+        console.error(`Error: Unknown execution mode "${m}". Supported modes: deterministic, subprocess_mcp, agy, naive_mutex, process_pool, docker`);
+        process.exit(1);
+      }
     } else if (arg === '--trials' && args[i + 1]) {
       trials = Math.max(1, parseInt(args[++i], 10) || 1);
     } else if (arg === '--verbose' || arg === '-v') {
@@ -52,6 +58,19 @@ Options:
   --help, -h         Show help text
 `);
       process.exit(0);
+    }
+  }
+
+  if (tier === 'agy') {
+    const agyProbe = new AgyAgentAdapter();
+    if (!agyProbe.isAvailable()) {
+      console.error(
+        `\n[FATAL ERROR: AGY_CLI_NOT_FOUND]\n` +
+        `Live Agent Mode (--mode agy) was explicitly requested, but the Antigravity CLI ('agy') is not available or executable in PATH.\n` +
+        `Live worker execution requires an active 'agy' installation with Gemini access.\n` +
+        `Refusing to silently fall back to deterministic subprocess mode.`
+      );
+      process.exit(1);
     }
   }
 
