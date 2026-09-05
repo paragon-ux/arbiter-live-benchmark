@@ -29,7 +29,20 @@ export class DockerIsolatedAdapter {
         timeout: 6000
       });
       containerOutput += probeOutput;
-      dockerAvailable = true;
+
+      // Verify daemon supports Linux containers (required for alpine image)
+      const osType = execFileSync('docker', ['info', '--format', '{{.OSType}}'], {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 6000
+      }).trim();
+
+      if (osType && osType !== 'linux') {
+        dockerAvailable = false;
+        containerError = `Docker daemon running in '${osType}' mode (requires linux container support for alpine)`;
+      } else {
+        dockerAvailable = true;
+      }
     } catch (err) {
       dockerAvailable = false;
       containerError = String(err);
