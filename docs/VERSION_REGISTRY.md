@@ -35,6 +35,7 @@ node scripts/bump-version.mjs 2.1.1
 
 Files in versioned subdirectories represent sealed, point-in-time historical audit records and must **not** be modified during version bumps:
 
+- **`docs/1.2.0/`**: Sealed audit and verification records for v1.2.0 (`FINAL_VERIFICATION_AUDIT_v1.2.0.md`).
 - **`docs/2.0.0/`**: Sealed audit and diagnostic reports for v2.0.0.
 - **`docs/2.1.0/`**: Sealed remediation and anti-regression audit reports for v2.1.0 (`REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md`, `SYSTEM_ARCHITECTURE_v2.1.0.md`, etc.).
 - **`BASELINE_v2.1.0.json`**: Sealed reference baseline JSON for v2.1.0 regressions.

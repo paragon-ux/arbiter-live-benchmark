@@ -2,6 +2,16 @@
 ## Multi-Agent Orchestration, Worktree Isolation & Fail-Closed Safety in Arbiter
 ### Evaluation Testbed: `arbiter-live-benchmark v1.2.0` | Target Suite: Node 22 LTS
 
+> [!WARNING]
+> **IMMUTABLE HISTORICAL ARCHIVE — SUPERSEDED**:
+> This document is an immutable historical record from the `v1.2.0` release. Metrics, unit test counts (44 vs 40), and token estimates in this file represent the legacy v1.2.0 architecture prior to compiled Byte-Pair Encoding (`@dqbd/tiktoken`) and live OS child process refactoring.
+> 
+> For active `v2.1.1` architectural documentation, live subprocess benchmarks, and compiled BPE calibration, refer to:
+> - **[Methodology & Reviewer FAQ](../METHODOLOGY_AND_REVIEWER_FAQ.md)**
+> - **[Benchmark Authoring Guide](../BENCHMARK_AUTHORING.md)**
+> - **[Suite Rationale](../Rationale.MD)**
+> - **[Root README](../../README.md)**
+
 ---
 
 ## Executive Verdict: Certified Scientifically & Empirically Proven

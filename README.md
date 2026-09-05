@@ -149,9 +149,20 @@ npm run calibrate
 
 ### Installation & Verification
 
+`arbiter-live-benchmark` evaluates the core Arbiter orchestrator. To test the suite on a fresh machine, clone Arbiter and the benchmark as sibling directories:
+
 ```bash
+# 1. Clone sibling repositories
+git clone https://github.com/paragon-ux/Arbiter.git
 git clone https://github.com/paragon-ux/arbiter-live-benchmark.git
-cd arbiter-live-benchmark
+
+# 2. Build the Arbiter orchestrator dependency
+cd Arbiter
+npm install
+npm run build
+
+# 3. Install dependencies and run verification on the benchmark
+cd ../arbiter-live-benchmark
 npm install
 npm run verify
 ```
