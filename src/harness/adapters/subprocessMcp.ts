@@ -886,6 +886,7 @@ export class SubprocessMcpAdapter {
   private async runDockerIsolatedOverhead(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     let dockerAvailable = false;
     let singleContainerMs = 0;
+    let probeError = '';
 
     try {
       const probeStart = performance.now();
@@ -896,15 +897,17 @@ export class SubprocessMcpAdapter {
       });
       singleContainerMs = performance.now() - probeStart;
       dockerAvailable = true;
-    } catch {
+    } catch (err: unknown) {
       dockerAvailable = false;
+      probeError = err instanceof Error ? err.message : String(err);
     }
 
     if (!dockerAvailable) {
-      collector.setAccuracy(0);
-      collector.setMainValidity(false);
+      collector.setAccuracy(null);
+      collector.setMainValidity(null);
       collector.setDetail('dockerAvailable', false);
-      collector.setDetail('skipReason', 'DOCKER_DAEMON_UNAVAILABLE');
+      collector.setDetail('skipReason', probeError ? 'DOCKER_PROBE_FAILED' : 'DOCKER_DAEMON_UNAVAILABLE');
+      if (probeError) collector.setDetail('probeError', probeError);
       const metrics = collector.finish();
       return {
         scenarioId: scenario.id,
@@ -1388,18 +1391,34 @@ export class SubprocessMcpAdapter {
         const value = position as Record<string, unknown> | null;
         return Boolean(value && Number.isInteger(value.line) && Number.isInteger(value.column) && Number(value.line) >= 1 && Number(value.column) >= 0);
       };
-      const expectedSymbols = new Map([
-        ['AuthService', { kind: 'class', start: { line: 10, column: 7 }, end: { line: 56, column: 1 } }],
-        ['constructor', { kind: 'method', start: { line: 11, column: 2 }, end: { line: 16, column: 6 } }],
-        ['registerUser', { kind: 'method', start: { line: 18, column: 2 }, end: { line: 31, column: 3 } }],
-        ['authenticateUser', { kind: 'method', start: { line: 33, column: 2 }, end: { line: 51, column: 3 } }],
-        ['validateSessionToken', { kind: 'method', start: { line: 53, column: 2 }, end: { line: 55, column: 3 } }],
-      ]);
+      const expectedSymbols = new Map<string, { kind: string; start: { line: number; column: number }; end: { line: number; column: number } }>();
+      for (const value of Array.isArray(scenario.expectedSymbols) ? scenario.expectedSymbols : []) {
+        const symbol = value as { name?: unknown; kind?: unknown; start?: { line?: unknown; column?: unknown }; end?: { line?: unknown; column?: unknown } };
+        if (typeof symbol.name === 'string' && typeof symbol.kind === 'string'
+          && Number.isInteger(symbol.start?.line) && Number.isInteger(symbol.start?.column)
+          && Number.isInteger(symbol.end?.line) && Number.isInteger(symbol.end?.column)) {
+          expectedSymbols.set(symbol.name, {
+            kind: symbol.kind,
+            start: { line: Number(symbol.start?.line), column: Number(symbol.start?.column) },
+            end: { line: Number(symbol.end?.line), column: Number(symbol.end?.column) },
+          });
+        }
+      }
       const samePosition = (left: unknown, right: { line: number; column: number }): boolean => {
         const value = left as Record<string, unknown> | null;
         return Boolean(value && value.line === right.line && value.column === right.column);
       };
-      const rangesVerified = symbols.length === expectedSymbols.size && symbols.every((symbol) => {
+      const observedNames = symbols.map((symbol) => typeof symbol.name === 'string' ? symbol.name : '');
+      const uniqueNames = new Set(observedNames);
+      const duplicateNames = observedNames.filter((name, index) => name && observedNames.indexOf(name) !== index);
+      const missingNames = [...expectedSymbols.keys()].filter((name) => !uniqueNames.has(name));
+      const unexpectedNames = [...uniqueNames].filter((name) => name && !expectedSymbols.has(name));
+      const rangesVerified = symbols.length === expectedSymbols.size
+        && uniqueNames.size === expectedSymbols.size
+        && duplicateNames.length === 0
+        && missingNames.length === 0
+        && unexpectedNames.length === 0
+        && symbols.every((symbol) => {
         if (typeof symbol.name !== 'string' || typeof symbol.kind !== 'string' || !validPosition(symbol.start) || !validPosition(symbol.end)) return false;
         const expected = expectedSymbols.get(symbol.name);
         return Boolean(expected && symbol.kind === expected.kind && samePosition(symbol.start, expected.start) && samePosition(symbol.end, expected.end));
@@ -1428,6 +1447,9 @@ export class SubprocessMcpAdapter {
       collector.setDetail('mainClean', mainClean);
       collector.setDetail('discoveredLanguage', String(result?.language || 'unknown'));
       collector.setDetail('symbolCount', symbols.length);
+      collector.setDetail('missingSymbols', missingNames);
+      collector.setDetail('unexpectedSymbols', unexpectedNames);
+      collector.setDetail('duplicateSymbols', [...new Set(duplicateNames)]);
 
       const metrics = collector.finish();
       return {

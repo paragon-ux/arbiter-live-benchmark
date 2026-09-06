@@ -9,12 +9,20 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     && typeof waymarkMetrics.waymarkResumeTokens === 'number'
     ? `1. **In-Flight Continuity**: Waymark used a ${waymarkMetrics.waymarkResumeTokens.toLocaleString()}-token resume packet inside a ${waymarkMetrics.tokensTotal.toLocaleString()}-token scenario; the cold scenario used ${coldTokens.toLocaleString()} total tokens, and the harness reported ${summary.averageSavingsPercent}% continuity savings.`
     : '1. **In-Flight Continuity**: Waymark preserves verified code spans across context compactions; the full benchmark reports continuity savings only when both continuity scenarios are present.';
+  const statusIcon = (skipped: boolean | undefined, passed: boolean): string => {
+    if (skipped) return '⏭ SKIP';
+    return passed ? '✅ PASS' : '❌ FAIL';
+  };
+  const tokensDisplay = (skipped: boolean | undefined, tokens: number): string => {
+    if (skipped || !tokens) return 'N/A';
+    return tokens.toLocaleString();
+  };
 
   const lines: string[] = [
     '# Arbiter Multi-Agent Benchmark Report',
     `**Timestamp:** ${summary.timestamp} | **Platform:** ${summary.platform} | **Node:** ${summary.nodeVersion} | **Tier:** ${summary.tier.toUpperCase()} | **Trials:** ${summary.trials || 1}`,
     '',
-    `**Summary:** ${summary.passedScenarios}/${summary.totalScenarios} scenarios passed${summary.skippedScenarios ? `, ${summary.skippedScenarios} skipped` : ''} in ${summary.totalDurationMs.toFixed(2)}ms (Heap: ${summary.heapUsedMb} MB)`,
+    `**Summary:** ${summary.passedScenarios}/${summary.totalScenarios} scenarios passed${summary.skippedScenarios ? `, ${summary.skippedScenarios} skipped` : ''}${summary.failedScenarios ? `, ${summary.failedScenarios} failed` : ''} in ${summary.totalDurationMs.toFixed(2)}ms (Heap: ${summary.heapUsedMb} MB)`,
     ''
   ];
 
@@ -23,8 +31,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
     for (const r of summary.results) {
-      const statusIcon = r.skipped ? '⏭ SKIP' : (r.passed ? '✅ PASS' : '❌ FAIL');
-      const tokensStr = r.metrics.tokensTotal ? r.metrics.tokensTotal.toLocaleString() : 'N/A';
+      const tokensStr = tokensDisplay(r.skipped, r.metrics.tokensTotal);
       const conflictsStr = r.metrics.conflictsDetected > 0
         ? `${r.metrics.conflictsDetected} (${r.metrics.conflictsResolved} resolved)`
         : '0';
@@ -34,7 +41,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
       const cv = r.stats ? r.stats.cvDuration.toFixed(2) : '0.00';
 
       lines.push(
-        `| **${r.scenarioId}** | ${r.title} | ${median} | ${p95} | ${stddev} | ${cv} | ${tokensStr} | ${conflictsStr} | ${r.metrics.accuracyPercent}% | ${statusIcon} |`
+        `| **${r.scenarioId}** | ${r.title} | ${median} | ${p95} | ${stddev} | ${cv} | ${tokensStr} | ${conflictsStr} | ${r.skipped ? 'N/A' : `${r.metrics.accuracyPercent}%`} | ${statusIcon(r.skipped, r.passed)} |`
       );
     }
   } else {
@@ -42,13 +49,12 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
     for (const r of summary.results) {
-      const statusIcon = r.skipped ? '⏭ SKIP' : (r.passed ? '✅ PASS' : '❌ FAIL');
-      const tokensStr = r.metrics.tokensTotal ? r.metrics.tokensTotal.toLocaleString() : 'N/A';
+      const tokensStr = tokensDisplay(r.skipped, r.metrics.tokensTotal);
       const conflictsStr = r.metrics.conflictsDetected > 0
         ? `${r.metrics.conflictsDetected} (${r.metrics.conflictsResolved} resolved)`
         : '0';
       lines.push(
-        `| **${r.scenarioId}** | ${r.title} | ${r.metrics.durationMs.toFixed(1)} | ${tokensStr} | ${conflictsStr} | ${r.metrics.accuracyPercent}% | ${statusIcon} |`
+        `| **${r.scenarioId}** | ${r.title} | ${r.metrics.durationMs.toFixed(1)} | ${tokensStr} | ${conflictsStr} | ${r.skipped ? 'N/A' : `${r.metrics.accuracyPercent}%`} | ${statusIcon(r.skipped, r.passed)} |`
       );
     }
   }

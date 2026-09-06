@@ -185,7 +185,7 @@ describe('Live Subprocess Worker Suite', () => {
     });
 
     assert.ok(res.passed);
-    assert.ok(res.metrics.accuracyPercent > 0, 'Accuracy must be calculated from real test results');
+    assert.ok((res.metrics.accuracyPercent ?? 0) > 0, 'Accuracy must be calculated from real test results');
     assert.equal(res.metrics.details?.typeErrors, 0);
   });
 
@@ -203,4 +203,3 @@ describe('Live Subprocess Worker Suite', () => {
     assert.equal(res.metrics.conflictsResolved, 0);
   });
 });
-

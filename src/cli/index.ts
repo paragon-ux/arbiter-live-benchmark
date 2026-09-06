@@ -120,7 +120,7 @@ Options:
       id: r.scenarioId,
       durationMs: r.metrics.durationMs,
       tokens: r.metrics.tokensTotal,
-      passed: r.passed,
+      passed: r.passed && r.skipped !== true,
       skipped: r.skipped === true
     }))
   };

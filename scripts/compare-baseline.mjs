@@ -49,16 +49,16 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
       comparisons.push({
         scenarioId: current.scenarioId,
         baselineDuration: null,
-        currentDuration: current.metrics?.durationMs ?? 0,
+        currentDuration: current.skipped === true ? null : current.metrics?.durationMs ?? 0,
         latencyDeltaPercent: 0,
         baselineTokens: null,
-        currentTokens: current.metrics?.tokensTotal ?? null,
+        currentTokens: current.skipped === true ? null : current.metrics?.tokensTotal ?? null,
         tokenDeltaPercent: 0,
         passed: current.passed,
         skipped: current.skipped === true,
         isNew: true,
         regressed: false,
-        reason: 'NEW_SCENARIO'
+        reason: current.skipped === true ? 'SKIPPED_CAPABILITY_UNAVAILABLE' : 'NEW_SCENARIO'
       });
       continue;
     }
@@ -81,12 +81,12 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
       comparisons.push({
         scenarioId: current.scenarioId,
         baselineDuration: baseDuration,
-        currentDuration: currDuration,
-        latencyDeltaMs,
-        latencyDeltaPercent,
+        currentDuration: null,
+        latencyDeltaMs: null,
+        latencyDeltaPercent: null,
         baselineTokens: baseTokens,
-        currentTokens: currTokens,
-        tokenDeltaPercent,
+        currentTokens: null,
+        tokenDeltaPercent: null,
         passed: current.passed,
         skipped: true,
         isNew: false,
@@ -172,11 +172,21 @@ export function formatComparisonReport(result) {
 
   for (const c of result.comparisons) {
     const baseLat = c.baselineDuration !== null ? `${c.baselineDuration.toFixed(2)}ms` : 'N/A';
-    const currLat = `${c.currentDuration.toFixed(2)}ms`;
-    const latDelta = c.isNew ? 'NEW' : `${c.latencyDeltaPercent >= 0 ? '+' : ''}${c.latencyDeltaPercent.toFixed(1)}%`;
+    const currLat = c.currentDuration === null ? 'N/A' : `${c.currentDuration.toFixed(2)}ms`;
+    let latDelta = 'N/A';
+    if (!c.skipped) {
+      if (c.isNew) {
+        latDelta = 'NEW';
+      } else {
+        latDelta = `${c.latencyDeltaPercent >= 0 ? '+' : ''}${c.latencyDeltaPercent.toFixed(1)}%`;
+      }
+    }
     const baseTok = c.baselineTokens !== null ? c.baselineTokens.toLocaleString() : 'N/A';
     const currTok = c.currentTokens !== null ? c.currentTokens.toLocaleString() : 'N/A';
-    const status = c.skipped ? '⏭ SKIPPED' : (c.regressed ? `❌ ${c.reason}` : (c.isNew ? '🆕 NEW' : '✅ PASS'));
+    let status = '✅ PASS';
+    if (c.isNew) status = '🆕 NEW';
+    if (c.regressed) status = `❌ ${c.reason}`;
+    if (c.skipped) status = '⏭ SKIPPED';
 
     lines.push(`| **${c.scenarioId}** | ${baseLat} | ${currLat} | ${latDelta} | ${baseTok} | ${currTok} | ${status} |`);
   }

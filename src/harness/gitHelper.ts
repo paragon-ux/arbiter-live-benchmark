@@ -52,6 +52,7 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
   execFileSync('git', ['commit', '-m', 'Initial benchmark repository commit'], { cwd: repoPath, windowsHide: true });
 
   const cleanup = () => {
+    const cleanupErrors: string[] = [];
     try {
       const worktreeOutput = execFileSync('git', ['worktree', 'list', '--porcelain'], {
         cwd: repoPath,
@@ -60,7 +61,7 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
       });
       const canonicalPath = (candidate: string): string => {
         const resolved = path.resolve(candidate);
-        try { return fs.realpathSync.native(resolved).toLowerCase(); } catch { return resolved.toLowerCase(); }
+        try { return fs.realpathSync.native(resolved); } catch { return resolved; }
       };
       const root = canonicalPath(repoPath);
       const worktreePaths = worktreeOutput
@@ -71,14 +72,25 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
       for (const worktreePath of worktreePaths) {
         try {
           execFileSync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: repoPath, windowsHide: true });
-        } catch {}
+        } catch (err: unknown) {
+          cleanupErrors.push(`worktree remove ${worktreePath}: ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
-      try { execFileSync('git', ['worktree', 'prune'], { cwd: repoPath, windowsHide: true }); } catch {}
-    } catch {}
+      try {
+        execFileSync('git', ['worktree', 'prune'], { cwd: repoPath, windowsHide: true });
+      } catch (err: unknown) {
+        cleanupErrors.push(`worktree prune: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    } catch (err: unknown) {
+      cleanupErrors.push(`worktree enumeration: ${err instanceof Error ? err.message : String(err)}`);
+    }
     try {
       fs.rmSync(repoPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    } catch {
-      // Best-effort cleanup on Windows file handles after nested worktrees are removed
+    } catch (err: unknown) {
+      cleanupErrors.push(`repository removal: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (cleanupErrors.length > 0) {
+      throw new Error(`Temporary repository cleanup failed: ${cleanupErrors.join('; ')}`);
     }
   };
 

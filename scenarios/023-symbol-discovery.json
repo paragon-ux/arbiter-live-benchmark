@@ -8,6 +8,13 @@
   "timeoutMs": 30000,
   "discoveryPath": "src/auth.ts",
   "language": "typescript",
+  "expectedSymbols": [
+    { "name": "AuthService", "kind": "class", "start": { "line": 10, "column": 7 }, "end": { "line": 56, "column": 1 } },
+    { "name": "constructor", "kind": "method", "start": { "line": 11, "column": 2 }, "end": { "line": 16, "column": 6 } },
+    { "name": "registerUser", "kind": "method", "start": { "line": 18, "column": 2 }, "end": { "line": 31, "column": 3 } },
+    { "name": "authenticateUser", "kind": "method", "start": { "line": 33, "column": 2 }, "end": { "line": 51, "column": 3 } },
+    { "name": "validateSessionToken", "kind": "method", "start": { "line": 53, "column": 2 }, "end": { "line": 55, "column": 3 } }
+  ],
   "expectedMetrics": {
     "symbolsVerified": true,
     "noWrite": true,

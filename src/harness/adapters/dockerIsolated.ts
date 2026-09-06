@@ -56,6 +56,7 @@ export class DockerIsolatedAdapter {
         title: scenario.title,
         tier: 'docker',
         passed: false,
+        skipped: true,
         error: `Docker daemon unreachable on host: ${containerError}. Fail closed with zero simulation.`,
         metrics: {
           durationMs: Number(durationMs.toFixed(2)),
@@ -64,8 +65,8 @@ export class DockerIsolatedAdapter {
           worktreesIsolated: false,
           conflictsDetected: 0,
           conflictsResolved: 0,
-          mainBranchValid: false,
-          accuracyPercent: 0,
+          mainBranchValid: null,
+          accuracyPercent: null,
           details: {
             coordinationStrategy: 'DOCKER_CONTAINER_PER_WORKER',
             dockerDaemonAvailable: false,
@@ -107,8 +108,8 @@ export class DockerIsolatedAdapter {
       let tempWt: string | undefined;
       try {
         const wtStart = performance.now();
-        tempWt = path.join(os.tmpdir(), `wt-bench-${process.pid}-${Date.now()}`);
-        execFileSync('git', ['worktree', 'add', '--detach', tempWt, 'main'], { cwd: tempRepo, windowsHide: true });
+        tempWt = fs.mkdtempSync(path.join(os.tmpdir(), 'wt-bench-'));
+        execFileSync('git', ['worktree', 'add', '--detach', '--force', tempWt, 'main'], { cwd: tempRepo, windowsHide: true });
         worktreeEquivMs = Math.max(0.1, performance.now() - wtStart);
       } finally {
         if (tempWt) {

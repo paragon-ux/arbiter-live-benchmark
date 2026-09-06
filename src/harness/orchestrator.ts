@@ -41,7 +41,7 @@ export class BenchmarkOrchestrator {
 
     for (const scenario of scenarios) {
       const trialDurations: number[] = [];
-      const trialHistory: { trialIndex: number; durationMs: number; passed: boolean }[] = [];
+      const trialHistory: { trialIndex: number; durationMs: number; passed: boolean; skipped: boolean }[] = [];
       let finalResult: ScenarioResult | undefined;
 
       for (let t = 0; t < trials; t++) {
@@ -93,7 +93,8 @@ export class BenchmarkOrchestrator {
         trialHistory.push({
           trialIndex: t + 1,
           durationMs: currentResult.metrics.durationMs,
-          passed: currentResult.passed
+          passed: currentResult.passed && currentResult.skipped !== true,
+          skipped: currentResult.skipped === true
         });
 
         if (!finalResult || (t === trials - 1)) {
@@ -121,7 +122,7 @@ export class BenchmarkOrchestrator {
     let totalSavings = 0;
     let savingsCount = 0;
     for (const r of results) {
-      if (r.metrics.continuitySavingsPercent !== undefined && r.metrics.continuitySavingsPercent > 0) {
+      if (!r.skipped && r.metrics.continuitySavingsPercent !== undefined && r.metrics.continuitySavingsPercent > 0) {
         totalSavings += r.metrics.continuitySavingsPercent;
         savingsCount++;
       }

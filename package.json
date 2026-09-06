@@ -34,8 +34,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
-    "test:coverage": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage dist/test/*.test.js",
+    "test": "npm run build && node --test --test-concurrency=1 \"dist/test/**/*.test.js\"",
+    "test:coverage": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage \"dist/test/**/*.test.js\"",
     "public-check": "node scripts/public-check.mjs",
     "calibrate": "node scripts/calibrate-tokens.mjs",
     "benchmark": "npm run build && node dist/src/cli/index.js --all",
@@ -47,7 +47,7 @@
     "check:checklist": "node scripts/check-checklist.mjs",
     "check:version": "node scripts/bump-version.mjs --check",
     "bump:version": "node scripts/bump-version.mjs",
-    "verify": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js && node scripts/public-check.mjs && npm run check:docs && npm run check:table && npm run check:claims && npm run check:hygiene && npm run check:checklist && npm run check:version",
+    "verify": "npm run build && node --test --test-concurrency=1 \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run check:docs && npm run check:table && npm run check:claims && npm run check:hygiene && npm run check:checklist && npm run check:version",
     "verify:release": "npm run verify && npm run benchmark && npm run compare"
   },
   "dependencies": {

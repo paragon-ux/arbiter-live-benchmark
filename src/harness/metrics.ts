@@ -32,11 +32,11 @@ export class MetricsCollector {
     if (resolved) this.metrics.conflictsResolved++;
   }
 
-  setMainValidity(valid: boolean): void {
+  setMainValidity(valid: boolean | null): void {
     this.metrics.mainBranchValid = valid;
   }
 
-  setAccuracy(percent: number): void {
+  setAccuracy(percent: number | null): void {
     this.metrics.accuracyPercent = percent;
   }
 

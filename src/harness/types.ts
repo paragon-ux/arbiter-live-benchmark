@@ -217,8 +217,8 @@ export interface ScenarioMetrics<T = ScenarioDetails> {
   worktreesIsolated?: boolean;
   conflictsDetected: number;
   conflictsResolved: number;
-  mainBranchValid: boolean;
-  accuracyPercent: number;
+  mainBranchValid: boolean | null;
+  accuracyPercent: number | null;
   containerStartupMs?: number;
   mutexWaitMs?: number;
   lockContentionCount?: number;
@@ -245,7 +245,7 @@ export interface ScenarioResult<T = ScenarioDetails> {
   skipped?: boolean;
   metrics: ScenarioMetrics<T>;
   rawDurationMs?: number;
-  trialHistory?: { trialIndex: number; durationMs: number; passed: boolean }[];
+  trialHistory?: { trialIndex: number; durationMs: number; passed: boolean; skipped: boolean }[];
   stats?: StatisticalMetrics;
   error?: string;
 }

@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: paragon-ux/Arbiter
-          ref: f1e6d1cc76a4d289df0c91f6a8b559a313004f83
+          ref: 498077f2c626aae98b0d6cdcc12bf471eb7cf1a3
           path: Arbiter
 
       - name: Check out Waymark sibling dependency
@@ -68,9 +68,11 @@ jobs:
         env:
           WAYMARK_CLI_PATH: ${{ github.workspace }}/waymark/dist/src/cli.js
         run: npm run verify:release
+        timeout-minutes: 30
 
       - name: Check native test coverage
         working-directory: arbiter-live-benchmark
         env:
           WAYMARK_CLI_PATH: ${{ github.workspace }}/waymark/dist/src/cli.js
         run: npm run test:coverage
+        timeout-minutes: 30
