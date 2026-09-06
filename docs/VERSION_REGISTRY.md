@@ -15,7 +15,7 @@ npm run check:version
 # or: node scripts/bump-version.mjs --check
 
 # Bump suite version atomically across all living targets
-node scripts/bump-version.mjs 2.3.0
+node scripts/bump-version.mjs 2.3.1
 ```
 
 ---

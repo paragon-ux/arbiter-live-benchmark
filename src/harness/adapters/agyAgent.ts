@@ -94,11 +94,13 @@ export class AgyAgentAdapter {
 
     const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
     const { repoPath, cleanup } = createTempGitRepo(targetPath);
+    let openDb: ArbiterDatabase | undefined;
 
     try {
       const dbPath = path.join(repoPath, '.arbiter', 'arbiter.db');
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
       const db = new ArbiterDatabase(dbPath);
+      openDb = db;
       const worktrees = new WorktreeManager(repoPath);
 
       const taskId = `task-agy-${scenario.id}`;
@@ -226,6 +228,7 @@ export class AgyAgentAdapter {
       const mergeQueue = new MergeQueue(db, worktrees, repoPath);
       const mergeRes = mergeQueue.mergeTask(taskId, 'main');
       db.close();
+      openDb = undefined;
 
       const durationMs = performance.now() - startTime;
       const passed = typeErrors === 0 && testsPassed === testsTotal && mergeRes.ok;
@@ -257,6 +260,7 @@ export class AgyAgentAdapter {
         }
       };
     } finally {
+      try { openDb?.close(); } catch {}
       cleanup();
     }
   }

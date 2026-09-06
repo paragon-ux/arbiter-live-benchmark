@@ -847,9 +847,10 @@ export class SubprocessMcpAdapter {
   private async runDiskFullRecovery(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arbiter-db-wal-'));
     const dbPath = path.join(tempDir, 'arbiter.db');
-    const db = new ArbiterDatabase(dbPath);
+    let db: ArbiterDatabase | undefined;
 
     try {
+      db = new ArbiterDatabase(dbPath);
       makeTask(db, { id: 'task-rollback-1', title: 'Rollback Task', description: 'Testing atomic rollback' });
 
       db.db.exec('BEGIN IMMEDIATE;');
@@ -875,8 +876,8 @@ export class SubprocessMcpAdapter {
         metrics,
       };
     } finally {
-      db.close();
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+      try { db?.close(); } catch {}
+      try { fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
     }
   }
 
@@ -1034,9 +1035,10 @@ export class SubprocessMcpAdapter {
   private async runCrossRepoWorkspaceDag(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-dag-'));
     const dbPath = path.join(tempDir, 'arbiter.db');
-    const db = new ArbiterDatabase(dbPath);
+    let db: ArbiterDatabase | undefined;
 
     try {
+      db = new ArbiterDatabase(dbPath);
       const dag = new TaskGraph(db);
       const packages = ['auth-svc', 'token-svc', 'pipeline', 'dashboard'];
 
@@ -1049,7 +1051,6 @@ export class SubprocessMcpAdapter {
       dag.addDependency('pkg-pipeline', 'pkg-dashboard');
 
       const order = dag.getTopologicalOrder();
-      db.close();
 
       collector.setAccuracy(order.length === 4 ? 100 : 0);
       collector.setDetail('dagNodesTotal', 4);
@@ -1063,7 +1064,8 @@ export class SubprocessMcpAdapter {
         metrics,
       };
     } finally {
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+      try { db?.close(); } catch {}
+      try { fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
     }
   }
 
@@ -1373,12 +1375,26 @@ export class SubprocessMcpAdapter {
         const value = position as Record<string, unknown> | null;
         return Boolean(value && Number.isInteger(value.line) && Number.isInteger(value.column) && Number(value.line) >= 1 && Number(value.column) >= 0);
       };
+      const expectedSymbols = new Map([
+        ['AuthService', { kind: 'class', start: { line: 10, column: 7 }, end: { line: 56, column: 1 } }],
+        ['constructor', { kind: 'method', start: { line: 11, column: 2 }, end: { line: 16, column: 6 } }],
+        ['registerUser', { kind: 'method', start: { line: 18, column: 2 }, end: { line: 31, column: 3 } }],
+        ['authenticateUser', { kind: 'method', start: { line: 33, column: 2 }, end: { line: 51, column: 3 } }],
+        ['validateSessionToken', { kind: 'method', start: { line: 53, column: 2 }, end: { line: 55, column: 3 } }],
+      ]);
+      const samePosition = (left: unknown, right: { line: number; column: number }): boolean => {
+        const value = left as Record<string, unknown> | null;
+        return Boolean(value && value.line === right.line && value.column === right.column);
+      };
+      const rangesVerified = symbols.length === expectedSymbols.size && symbols.every((symbol) => {
+        if (typeof symbol.name !== 'string' || typeof symbol.kind !== 'string' || !validPosition(symbol.start) || !validPosition(symbol.end)) return false;
+        const expected = expectedSymbols.get(symbol.name);
+        return Boolean(expected && symbol.kind === expected.kind && samePosition(symbol.start, expected.start) && samePosition(symbol.end, expected.end));
+      });
       const symbolsVerified = result?.ok === true
         && result.path === String(scenario.discoveryPath || 'src/auth.ts')
         && result.language === String(scenario.language || 'typescript')
-        && symbols.some((symbol) => symbol.name === 'AuthService' && symbol.kind === 'class')
-        && symbols.some((symbol) => symbol.name === 'authenticateUser' && symbol.kind === 'method')
-        && symbols.every((symbol) => typeof symbol.name === 'string' && typeof symbol.kind === 'string' && validPosition(symbol.start) && validPosition(symbol.end));
+        && rangesVerified;
       const noWrite = workerOutput.discoveryNoWrite === true;
       const worktreeIsolated = typeof workerOutput.worktreePath === 'string'
         && path.resolve(workerOutput.worktreePath) !== path.resolve(repoPath)
@@ -1410,12 +1426,15 @@ export class SubprocessMcpAdapter {
         error: passed ? undefined : workerOutput.error || 'Structured discovery evidence failed',
       };
     } finally {
-      const cleanupDb = new ArbiterDatabase(dbPath);
-      cleanupDb.releaseWorkerLease('worker-symbol-discovery', taskId);
-      cleanupDb.close();
-      const worktrees = new WorktreeManager(repoPath);
-      try { worktrees.removeWorktree(taskId); } catch {}
-      try { worktrees.deleteBranch(taskId); } catch {}
+      try {
+        const cleanupDb = new ArbiterDatabase(dbPath);
+        try { cleanupDb.releaseWorkerLease('worker-symbol-discovery', taskId); } finally { cleanupDb.close(); }
+      } catch {}
+      try {
+        const worktrees = new WorktreeManager(repoPath);
+        try { worktrees.removeWorktree(taskId); } catch {}
+        try { worktrees.deleteBranch(taskId); } catch {}
+      } catch {}
       cleanup();
     }
   }

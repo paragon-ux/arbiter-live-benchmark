@@ -1,6 +1,6 @@
 # Arbiter Live Benchmark: Multi-Agent Orchestration & Continuity Testbed
 
-[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-2.3.1-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
@@ -10,7 +10,7 @@
 
 ## Table of Contents
 
-- [Empirical Results Summary (v2.3.0)](#empirical-results-summary-v230)
+- [Empirical Results Summary (v2.3.1)](#empirical-results-summary-v231)
   - [Live Frontier Agent Verification (Tier 2: Google Gemini via Antigravity CLI)](#live-frontier-agent-verification-tier-2-google-gemini-via-antigravity-cli)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md)
@@ -22,7 +22,7 @@
 
 ---
 
-## Empirical Results Summary (v2.3.0)
+## Empirical Results Summary (v2.3.1)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 

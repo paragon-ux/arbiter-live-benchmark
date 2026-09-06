@@ -1,6 +1,6 @@
 # Scientific Methodology & Independent Reviewer FAQ: Multi-Agent Orchestration, Subprocess Isolation, and Cloud API Boundaries
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Target Repository:** `arbiter-live-benchmark`  
 **Audience:** Independent reviewers, distributed systems researchers, benchmark auditors, and agent harness developers.
 
@@ -341,7 +341,7 @@ cd ../arbiter-live-benchmark
 npm install
 npm run verify
 ```
-`npm run verify` executes the full suite of 39 unit and integration tests across 13 Node test suites in 13 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 23-scenario benchmark and versioned-baseline comparison.
+`npm run verify` executes the full suite of 42 unit and integration tests across 9 Node test suites in 9 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 23-scenario benchmark and versioned-baseline comparison.
 
 ### Step 2: Run All 23 Scenarios in Live Subprocess Mode
 ```bash
@@ -364,7 +364,7 @@ node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode agy
 ```
 In this mode, Arbiter provisions the worktree, acquires the lease, launches the live LLM agent, monitors the agent's PID, and merges the resulting branch upon test completion.
 
-#### Authoritative Live Verification Receipt (v2.3.0)
+#### Authoritative Live Verification Receipt (v2.3.1)
 The following execution receipt was generated on live hardware executing Google Gemini via `agy`:
 
 | Metric | Measured Live Result | Verification Detail |

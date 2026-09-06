@@ -53,9 +53,28 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
 
   const cleanup = () => {
     try {
+      const worktreeOutput = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+        cwd: repoPath,
+        windowsHide: true,
+        encoding: 'utf8',
+      });
+      const root = path.resolve(repoPath).toLowerCase();
+      const worktreePaths = worktreeOutput
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('worktree '))
+        .map((line) => line.slice('worktree '.length).trim())
+        .filter((worktreePath) => path.resolve(worktreePath).toLowerCase() !== root);
+      for (const worktreePath of worktreePaths) {
+        try {
+          execFileSync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: repoPath, windowsHide: true });
+        } catch {}
+      }
+      try { execFileSync('git', ['worktree', 'prune'], { cwd: repoPath, windowsHide: true }); } catch {}
+    } catch {}
+    try {
       fs.rmSync(repoPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch {
-      // Best-effort cleanup on Windows file handles
+      // Best-effort cleanup on Windows file handles after nested worktrees are removed
     }
   };
 

@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ArbiterDatabase } from 'arbiter';
@@ -7,6 +9,19 @@ import { createTempGitRepo } from '../src/harness/gitHelper.js';
 
 describe('Live Subprocess Worker Suite', () => {
   const adapter = new SubprocessMcpAdapter();
+
+  it('removes nested Git worktrees during temporary repository cleanup', () => {
+    const { repoPath, cleanup } = createTempGitRepo();
+    const nestedPath = path.join(repoPath, '.arbiter', 'worktrees', 'nested');
+    try {
+      fs.mkdirSync(path.dirname(nestedPath), { recursive: true });
+      execFileSync('git', ['worktree', 'add', '-b', 'nested-branch', nestedPath, 'main'], { cwd: repoPath, windowsHide: true });
+      assert.ok(fs.existsSync(nestedPath));
+    } finally {
+      cleanup();
+    }
+    assert.equal(fs.existsSync(repoPath), false);
+  });
 
   it('spawns a live worker OS child process with real PID and verifies execution', async () => {
     const { repoPath, cleanup } = createTempGitRepo();
@@ -188,5 +203,4 @@ describe('Live Subprocess Worker Suite', () => {
     assert.equal(res.metrics.conflictsResolved, 0);
   });
 });
-
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.1] — 2026-09-06
+
+### Fixed
+- Added exact symbol names, kinds, and source-range assertions for the live `023-symbol-discovery` scenario.
+- Fixed release baseline resolution to use the sealed v2.3.0 baseline until a v2.3.1 baseline exists.
+- Fixed temporary-repository cleanup to remove nested Git worktrees before deleting repositories, covering every scenario that provisions live worktrees.
+- Fixed the Docker comparator's host worktree probe to use a detached checkout and clean its external worktree directory.
+- Pinned CI to the exact Arbiter 2.3.1 and Waymark 1.8.1 revisions and ran the full release gate.
+
 ## [2.3.0] — 2026-09-06
 
 ### Added
