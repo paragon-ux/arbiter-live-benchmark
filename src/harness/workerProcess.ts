@@ -13,6 +13,9 @@ const rootNodeModules = path.resolve(rootDir, 'node_modules');
 const rootTypesDir = path.resolve(rootNodeModules, '@types');
 const COMMAND_TIMEOUT_MS = 30_000;
 const MCP_TIMEOUT_MS = 90_000;
+const FAILURE_RECONCILE_TIMEOUT_MS = 5_000;
+const MAX_CAPTURE_BYTES = 256 * 1024;
+const MAX_MCP_LINE_BYTES = 1024 * 1024;
 const waymarkCliScript = [
   process.env.WAYMARK_CLI_PATH || '',
   path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
@@ -34,7 +37,7 @@ function killProcessTree(pid: number | undefined): void {
       nodeExecFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
         windowsHide: true,
         stdio: 'ignore',
-        timeout: 5_000,
+        timeout: 1_000,
       });
     } catch {}
     return;
@@ -49,6 +52,7 @@ function killProcessTree(pid: number | undefined): void {
 function execFileSync(file: string, args: readonly string[], options: ExecFileSyncOptions = {}): string | Buffer {
   const spawnOptions: ExecFileSyncOptions = {
     timeout: COMMAND_TIMEOUT_MS,
+    maxBuffer: MAX_CAPTURE_BYTES,
     killSignal: 'SIGTERM',
     ...options,
   };
@@ -108,6 +112,57 @@ function executeCommand(file: string, args: readonly string[], cwd: string): Com
   }
 }
 
+function executeCommandAsync(file: string, args: readonly string[], cwd: string, timeoutMs: number): Promise<CommandResult> {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    NODE_PATH: fs.existsSync(rootNodeModules) ? rootNodeModules : process.env.NODE_PATH,
+  };
+  if (args.includes('--test')) delete env.NODE_TEST_CONTEXT;
+
+  return new Promise((resolve) => {
+    const child = spawn(file, args, {
+      cwd,
+      env,
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+    let outputError = '';
+    let settled = false;
+    let timer: NodeJS.Timeout | undefined;
+    const append = (current: string, chunk: Buffer): string => {
+      const next = current + chunk.toString('utf8');
+      if (Buffer.byteLength(next, 'utf8') > MAX_CAPTURE_BYTES) {
+        outputError = `Command output exceeded ${MAX_CAPTURE_BYTES} bytes`;
+        try { child.kill('SIGTERM'); } catch {}
+      }
+      return next.slice(0, MAX_CAPTURE_BYTES);
+    };
+    const finish = (result: CommandResult): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(result);
+    };
+    child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
+    child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
+    child.on('error', (error) => finish({ ok: false, stdout, stderr: stderr || error.message }));
+    child.on('close', (code, signal) => finish({
+      ok: !outputError && code === 0,
+      stdout,
+      stderr: outputError || stderr || (code === 0 ? '' : `Command exited with code ${code ?? 'null'}${signal ? ` (${signal})` : ''}`),
+    }));
+    timer = setTimeout(() => {
+      if (settled) return;
+      outputError = `Command timed out after ${timeoutMs}ms`;
+      killProcessTree(child.pid);
+      try { child.kill('SIGTERM'); } catch {}
+    }, Math.max(1, timeoutMs));
+  });
+}
+
 class TokenLedger {
   private total = 0;
   private request = 0;
@@ -120,7 +175,10 @@ class TokenLedger {
 
   add(text: string, kind: 'request' | 'response' | 'content' | 'error', retry = false, stream: 'stdout' | 'stderr' = 'stdout'): void {
     if (!text) return;
-    const tokens = countTokens(text);
+    const bounded = Buffer.byteLength(text, 'utf8') > MAX_CAPTURE_BYTES
+      ? `${text.slice(0, MAX_CAPTURE_BYTES)}\n[output truncated]`
+      : text;
+    const tokens = countTokens(bounded);
     this.total += tokens;
     if (kind === 'request') this.request += tokens;
     if (kind === 'response') this.response += tokens;
@@ -128,8 +186,8 @@ class TokenLedger {
     if (kind === 'error') this.errors += tokens;
     if (retry) this.retries += tokens;
     if (kind === 'response' || kind === 'error') {
-      if (stream === 'stderr') this.stderr += text;
-      else this.stdout += text;
+      if (stream === 'stderr') this.stderr = `${this.stderr}${bounded}`.slice(0, MAX_CAPTURE_BYTES);
+      else this.stdout = `${this.stdout}${bounded}`.slice(0, MAX_CAPTURE_BYTES);
     }
   }
 
@@ -155,6 +213,26 @@ function runCommandWithLedger(ledger: TokenLedger, file: string, args: readonly 
   return result;
 }
 
+async function runCommandWithLedgerAsync(ledger: TokenLedger, file: string, args: readonly string[], cwd: string, timeoutMs: number, retry = false): Promise<CommandResult> {
+  ledger.add(JSON.stringify(args), 'request', retry);
+  const result = await executeCommandAsync(file, args, cwd, timeoutMs);
+  ledger.add(result.stdout, 'response', retry, 'stdout');
+  ledger.add(result.stderr, 'error', retry, 'stderr');
+  return result;
+}
+
+function refreshLease(ledger: TokenLedger, repoPath: string, taskId: string, workerId: string, leaseEpoch: number): void {
+  const cliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
+  const result = runCommandWithLedger(ledger, process.execPath, [
+    cliScript,
+    'heartbeat',
+    '--task', taskId,
+    '--worker', workerId,
+    '--lease-epoch', String(leaseEpoch),
+  ], repoPath);
+  if (!result.ok) throw new Error(`Lease heartbeat failed: ${result.stderr}`);
+}
+
 function runTsc(ledger: TokenLedger, worktreePath: string, extraArgs: string[] = []): CommandResult {
   const args = [tscBin, ...extraArgs];
   if (fs.existsSync(rootTypesDir)) {
@@ -175,12 +253,17 @@ function isWithin(root: string, candidate: string, allowRoot = false): boolean {
 
 function nearestExisting(candidate: string): string {
   let current = path.resolve(candidate);
-  while (!fs.existsSync(current)) {
-    const parent = path.dirname(current);
-    if (parent === current) return current;
-    current = parent;
+  while (true) {
+    try {
+      fs.lstatSync(current);
+      return current;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      const parent = path.dirname(current);
+      if (parent === current) return current;
+      current = parent;
+    }
   }
-  return current;
 }
 
 function resolveContainedPath(worktreePath: string, requestedPath: string, label: string): string {
@@ -202,9 +285,15 @@ function resolveContainedPath(worktreePath: string, requestedPath: string, label
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes('must not be a symbolic link')) throw err;
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
   }
-  if (fs.existsSync(candidate) && !isWithin(root, canonicalPath(candidate))) {
-    throw new Error(`${label} resolves outside the assigned worktree`);
+  try {
+    fs.lstatSync(candidate);
+    if (!isWithin(root, canonicalPath(candidate))) {
+      throw new Error(`${label} resolves outside the assigned worktree`);
+    }
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
   }
   return candidate;
 }
@@ -234,15 +323,34 @@ function resolveTestTarget(worktreePath: string, testFile: string): string {
   if (!normalized) throw new Error('testFile must not be empty');
   if (normalized.endsWith('.ts')) {
     const source = resolveContainedPath(worktreePath, normalized, 'testFile');
-    if (!fs.statSync(source).isFile()) throw new Error('testFile must reference a regular file');
+    assertContainedRegularFile(worktreePath, source, 'testFile');
     const compiled = `dist/${normalized.replace(/\.ts$/, '.js')}`;
     const target = resolveContainedPath(worktreePath, compiled, 'compiled testFile');
-    if (!fs.statSync(target).isFile()) throw new Error('compiled testFile is missing');
+    assertContainedRegularFile(worktreePath, target, 'compiled testFile');
     return path.relative(worktreePath, target).replace(/\\/g, '/');
   }
   const target = resolveContainedPath(worktreePath, normalized, 'testFile');
-  if (!fs.statSync(target).isFile()) throw new Error('testFile must reference a regular file');
+  assertContainedRegularFile(worktreePath, target, 'testFile');
   return path.relative(worktreePath, target).replace(/\\/g, '/');
+}
+
+function assertContainedRegularFile(worktreePath: string, targetFile: string, label: string): void {
+  const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_RDONLY);
+  try {
+    if (!fs.fstatSync(descriptor).isFile()) throw new Error(`${label} must reference a regular file`);
+  } finally {
+    closeContainedFile(descriptor);
+  }
+}
+
+function readContainedFile(worktreePath: string, targetFile: string, label: string): Buffer {
+  const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_RDONLY);
+  try {
+    if (!fs.fstatSync(descriptor).isFile()) throw new Error(`${label} must reference a regular file`);
+    return fs.readFileSync(descriptor);
+  } finally {
+    closeContainedFile(descriptor);
+  }
 }
 
 function containedParentSegments(worktreePath: string, targetFile: string): string[] {
@@ -284,7 +392,7 @@ function ensureContainedParent(worktreePath: string, targetFile: string): string
   return current;
 }
 
-function openContainedFilePosix(worktreePath: string, targetFile: string, flags: number): number {
+function openContainedDirectoryPosix(worktreePath: string, targetFile: string, createParents: boolean): { fd: number; descriptors: number[] } {
   const noFollow = fs.constants.O_NOFOLLOW;
   const directory = fs.constants.O_DIRECTORY;
   if (noFollow === undefined || directory === undefined) throw new Error('secure directory-relative file operations are unavailable');
@@ -300,15 +408,33 @@ function openContainedFilePosix(worktreePath: string, targetFile: string, flags:
       try {
         childDescriptor = fs.openSync(childPath, directoryFlags);
       } catch (err: unknown) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || (flags & fs.constants.O_CREAT) === 0) throw err;
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || !createParents) throw err;
         fs.mkdirSync(childPath);
         childDescriptor = fs.openSync(childPath, directoryFlags);
       }
       parentDescriptors.push(childDescriptor);
       parentDescriptor = childDescriptor;
     }
+    return { fd: parentDescriptor, descriptors: parentDescriptors };
+  } catch (err) {
+    closeDescriptors(parentDescriptors);
+    throw err;
+  }
+}
 
-    const targetPath = `${descriptorPath}/${parentDescriptor}/${path.basename(targetFile)}`;
+function closeDescriptors(descriptors: number[]): void {
+  for (const descriptor of descriptors.reverse()) {
+    try { fs.closeSync(descriptor); } catch {}
+  }
+}
+
+function openContainedFilePosix(worktreePath: string, targetFile: string, flags: number): number {
+  const noFollow = fs.constants.O_NOFOLLOW;
+  if (noFollow === undefined || fs.constants.O_DIRECTORY === undefined) throw new Error('secure directory-relative file operations are unavailable');
+  const descriptorPath = '/dev/fd';
+  const parent = openContainedDirectoryPosix(worktreePath, targetFile, (flags & fs.constants.O_CREAT) !== 0);
+  try {
+    const targetPath = `${descriptorPath}/${parent.fd}/${path.basename(targetFile)}`;
     let existed = true;
     try { fs.lstatSync(targetPath); } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
@@ -324,9 +450,7 @@ function openContainedFilePosix(worktreePath: string, targetFile: string, flags:
       throw err;
     }
   } finally {
-    for (const descriptor of parentDescriptors.reverse()) {
-      try { fs.closeSync(descriptor); } catch {}
-    }
+    closeDescriptors(parent.descriptors);
   }
 }
 
@@ -336,17 +460,22 @@ function openContainedFile(worktreePath: string, targetFile: string, flags: numb
   const parent = ensureContainedParent(worktreePath, targetFile);
   if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
   const safeTarget = path.join(parent, path.basename(targetFile));
-  const existed = fs.existsSync(safeTarget);
-  if (existed && fs.lstatSync(safeTarget).isSymbolicLink()) {
-    throw new Error('file operation path must not be a symbolic link');
+  let existed = true;
+  try {
+    if (fs.lstatSync(safeTarget).isSymbolicLink()) throw new Error('file operation path must not be a symbolic link');
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    existed = false;
   }
   const parentDescriptor = fs.openSync(parent, fs.constants.O_RDONLY);
   const parentIdentity = fs.fstatSync(parentDescriptor);
   const noFollow = fs.constants.O_NOFOLLOW;
   const exclusiveCreate = !existed && (flags & fs.constants.O_CREAT) !== 0 ? fs.constants.O_EXCL : 0;
+  let retainedParent = false;
   try {
-    const descriptor = fs.openSync(safeTarget, flags | (noFollow ?? 0) | exclusiveCreate, 0o600);
+    const descriptor = fs.openSync(safeTarget, (flags & ~fs.constants.O_TRUNC) | (noFollow ?? 0) | exclusiveCreate, 0o600);
     try {
+      if (fs.lstatSync(safeTarget).isSymbolicLink()) throw new Error('file operation path must not be a symbolic link');
       const currentParent = fs.statSync(parent);
       if (currentParent.dev !== parentIdentity.dev || currentParent.ino !== parentIdentity.ino) {
         throw new Error('file operation parent changed during open');
@@ -355,18 +484,65 @@ function openContainedFile(worktreePath: string, targetFile: string, flags: numb
       if (!isWithin(root, actual) || !fs.fstatSync(descriptor).isFile()) {
         throw new Error('file operation path resolves outside the assigned worktree');
       }
+      windowsOpenParents.set(descriptor, { descriptor: parentDescriptor, path: parent, identity: parentIdentity });
+      retainedParent = true;
       return descriptor;
     } catch (err) {
       fs.closeSync(descriptor);
       throw err;
     }
   } finally {
-    fs.closeSync(parentDescriptor);
+    if (!retainedParent) fs.closeSync(parentDescriptor);
+  }
+}
+
+const windowsOpenParents = new Map<number, { descriptor: number; path: string; identity: fs.Stats }>();
+
+function verifyWindowsParent(descriptor: number): void {
+  const parent = windowsOpenParents.get(descriptor);
+  if (!parent) return;
+  const current = fs.statSync(parent.path);
+  if (current.dev !== parent.identity.dev || current.ino !== parent.identity.ino) {
+    throw new Error('file operation parent changed during use');
+  }
+}
+
+function closeContainedFile(descriptor: number): void {
+  try { fs.closeSync(descriptor); } finally {
+    const parent = windowsOpenParents.get(descriptor);
+    windowsOpenParents.delete(descriptor);
+    if (parent) fs.closeSync(parent.descriptor);
   }
 }
 
 function deleteContainedFile(worktreePath: string, targetFile: string): void {
-  if (!fs.existsSync(path.dirname(targetFile))) return;
+  if (process.platform !== 'win32') {
+    let parent: { fd: number; descriptors: number[] };
+    try {
+      parent = openContainedDirectoryPosix(worktreePath, targetFile, false);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw err;
+    }
+    const safeTarget = `/dev/fd/${parent.fd}/${path.basename(targetFile)}`;
+    try {
+      const stat = fs.lstatSync(safeTarget);
+      if (stat.isDirectory()) throw new Error('delete file operation must reference a file');
+      fs.unlinkSync(safeTarget);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    } finally {
+      closeDescriptors(parent.descriptors);
+    }
+    return;
+  }
+
+  try {
+    fs.lstatSync(path.dirname(targetFile));
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
   const root = canonicalPath(worktreePath);
   const parent = ensureContainedParent(worktreePath, targetFile);
   if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
@@ -376,6 +552,11 @@ function deleteContainedFile(worktreePath: string, targetFile: string): void {
   try {
     const stat = fs.lstatSync(safeTarget);
     if (stat.isDirectory()) throw new Error('delete file operation must reference a file');
+    if (stat.isSymbolicLink()) throw new Error('delete file operation must not reference a symbolic link');
+    const currentParent = fs.statSync(parent);
+    if (currentParent.dev !== parentIdentity.dev || currentParent.ino !== parentIdentity.ino) {
+      throw new Error('file operation parent changed during delete');
+    }
     fs.unlinkSync(safeTarget);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
@@ -399,12 +580,21 @@ function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] 
     } else if (op.action === 'append' || op.append !== undefined) {
       const content = op.append || '';
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
-      try { fs.writeFileSync(descriptor, content, 'utf8'); } finally { fs.closeSync(descriptor); }
+      try {
+        verifyWindowsParent(descriptor);
+        fs.writeFileSync(descriptor, content, 'utf8');
+        verifyWindowsParent(descriptor);
+      } finally { closeContainedFile(descriptor); }
       ledger.add(content, 'content');
     } else {
       const content = op.content || '';
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC);
-      try { fs.writeFileSync(descriptor, content, 'utf8'); } finally { fs.closeSync(descriptor); }
+      try {
+        verifyWindowsParent(descriptor);
+        fs.ftruncateSync(descriptor, 0);
+        fs.writeFileSync(descriptor, content, 'utf8');
+        verifyWindowsParent(descriptor);
+      } finally { closeContainedFile(descriptor); }
       ledger.add(content, 'content');
     }
   }
@@ -578,8 +768,7 @@ function discoveryStateSnapshot(repoPath: string, worktreePath: string, relative
   const databaseDir = path.join(repoPath, '.arbiter');
   const databaseFiles = snapshotTree(databaseDir);
   const sourcePath = resolveContainedPath(worktreePath, relativePath, 'discovery path');
-  if (!fs.statSync(sourcePath).isFile()) throw new Error('discovery path must reference a regular file');
-  const sourceHash = crypto.createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
+  const sourceHash = crypto.createHash('sha256').update(readContainedFile(worktreePath, sourcePath, 'discovery path')).digest('hex');
   const gitStatus = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--ignored=all'], {
     cwd: worktreePath,
     windowsHide: true,
@@ -633,6 +822,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     const send = (msg: JsonRpcMessage) => {
       if (settled || serverProcess.stdin.destroyed) return;
       const jsonStr = JSON.stringify(msg);
+      if (Buffer.byteLength(jsonStr, 'utf8') > MAX_MCP_LINE_BYTES) {
+        throw new Error(`MCP request exceeded ${MAX_MCP_LINE_BYTES} bytes`);
+      }
       ledger.add(jsonStr, 'request');
       serverProcess.stdin.write(jsonStr + '\n');
     };
@@ -702,41 +894,50 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     };
 
     let failureTimeout: NodeJS.Timeout | undefined;
-    const reconcileFailure = (message: string): boolean => {
+    const reconcileFailure = async (message: string): Promise<boolean> => {
       if (!claimedTaskId) return true;
       const taskId = claimedTaskId;
       const cliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
-      const readStatus = (): string | undefined => {
-        const status = runCommandWithLedger(ledger, process.execPath, [cliScript, 'status', '--task', taskId], config.repoPath);
+      const deadline = Date.now() + FAILURE_RECONCILE_TIMEOUT_MS;
+      const readStatus = async (): Promise<string | undefined> => {
+        const timeoutMs = Math.max(1, deadline - Date.now());
+        const status = await runCommandWithLedgerAsync(ledger, process.execPath, [cliScript, 'status', '--task', taskId], config.repoPath, timeoutMs);
         if (!status.ok) return undefined;
         try {
           const data = JSON.parse(status.stdout) as { task?: { status?: unknown } };
           return typeof data.task?.status === 'string' ? data.task.status : undefined;
         } catch { return undefined; }
       };
-      const currentStatus = readStatus();
-      if (currentStatus === 'FAILED' || currentStatus === 'COMPLETED') return true;
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const result = runCommandWithLedger(ledger, process.execPath, [
+      const isTerminal = (status: string | undefined): boolean => status === 'FAILED' || status === 'COMPLETED';
+      if (isTerminal(await readStatus())) return true;
+      for (let attempt = 0; attempt < 8 && Date.now() < deadline; attempt++) {
+        const timeoutMs = Math.max(1, deadline - Date.now());
+        const result = await runCommandWithLedgerAsync(ledger, process.execPath, [
           cliScript,
           'fail',
           '--task', taskId,
           '--worker', config.workerId,
           '--error', message,
-        ], config.repoPath, attempt > 0);
+        ], config.repoPath, timeoutMs, attempt > 0);
         if (result.ok) {
           try {
             const data = JSON.parse(result.stdout) as { ok?: unknown };
             if (data.ok === true) return true;
           } catch {}
         }
+        const waitMs = Math.min(80 * Math.pow(1.5, attempt), Math.max(0, deadline - Date.now()));
+        if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
-      const finalStatus = readStatus();
-      return finalStatus === 'FAILED' || finalStatus === 'COMPLETED';
+      return isTerminal(await readStatus());
     };
+    let failureFinishPromise: Promise<void> | undefined;
     const finishFailure = (message: string) => {
-      const reconciled = reconcileFailure(message);
-      finish(output({ error: reconciled ? message : `${message}; failure transition was not acknowledged`, stderr: ledger.stderr || message }));
+      if (failureFinishPromise) return;
+      failureFinishPromise = reconcileFailure(message).then((reconciled) => {
+        finish(output({ error: reconciled ? message : `${message}; failure transition was not acknowledged`, stderr: ledger.stderr || message }));
+      }).catch((error: unknown) => {
+        finish(output({ error: `${message}; failure reconciliation failed: ${error instanceof Error ? error.message : String(error)}`, stderr: ledger.stderr || message }));
+      });
     };
     const startFailureTransition = (message: string) => {
       sendFailureTransition(message);
@@ -762,12 +963,14 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       if (config.holdLeaseMs && config.holdLeaseMs > 0) {
         await new Promise((r) => setTimeout(r, config.holdLeaseMs));
       }
+      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
 
       if (config.discovery) {
         throw new Error('MCP worker discovery configuration is unsupported; use CLI worker mode');
       }
 
       applyFileOperations(worktreePath, config.files, ledger);
+      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
 
       if (config.runTypecheck) {
         const result = runTsc(ledger, worktreePath, ['--noEmit']);
@@ -775,6 +978,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           typeErrors++;
           throw new Error(`Typecheck failed: ${result.stderr}`);
         }
+        refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
       }
 
       if (config.runTests) {
@@ -785,6 +989,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         if (testMetrics.typeErrors > 0 || testMetrics.unitTestsTotal < 1 || testMetrics.unitTestsPassed !== testMetrics.unitTestsTotal) {
           throw new Error(`Tests failed: ${testMetrics.unitTestsPassed}/${testMetrics.unitTestsTotal} passed with ${testMetrics.typeErrors} type error(s)`);
         }
+        refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
       }
 
       if (config.shouldFail) {
@@ -799,6 +1004,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       }
 
       recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
+      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
       completionAttempts = 1;
       const completionAnswer = config.commitMessage
         ? `${config.commitMessage}\n\nCompleted work by ${config.workerId} at lease epoch ${leaseEpoch}`
@@ -956,6 +1162,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       if (settled) return;
       const raw = chunk.toString();
       ledger.add(raw, 'response', false, 'stdout');
+      if (Buffer.byteLength(buffer, 'utf8') + Buffer.byteLength(raw, 'utf8') > MAX_MCP_LINE_BYTES) {
+        fail(`MCP response exceeded ${MAX_MCP_LINE_BYTES} bytes`);
+        return;
+      }
       buffer += raw;
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
@@ -1135,12 +1345,21 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     return { ok: false, error: lastError };
   };
 
+  try {
+    refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err);
+    const transition = await transitionFailure(reason);
+    return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+  }
+
   if (config.discovery) {
     try {
       const discoveryPath = config.discovery.path.replace(/\\/g, '/');
       const discoveryFile = resolveContainedPath(worktreePath, discoveryPath, 'discovery path');
-      if (!fs.statSync(discoveryFile).isFile()) {
-        const reason = 'discovery path must reference a regular file';
+      try { assertContainedRegularFile(worktreePath, discoveryFile, 'discovery path'); }
+      catch (err: unknown) {
+        const reason = err instanceof Error ? err.message : String(err);
         const transition = await transitionFailure(reason);
         return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
       }
@@ -1180,6 +1399,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   try {
     applyFileOperations(worktreePath, config.files, ledger);
+    refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : String(err);
     const transition = await transitionFailure(reason);
@@ -1194,6 +1414,13 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       const transition = await transitionFailure(reason);
       return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
     }
+    try {
+      refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
+    } catch (err: unknown) {
+      const reason = err instanceof Error ? err.message : String(err);
+      const transition = await transitionFailure(reason);
+      return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+    }
   }
 
   if (config.runTests) {
@@ -1204,6 +1431,13 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       unitTestsTotal = testMetrics.unitTestsTotal;
       if (testMetrics.typeErrors > 0 || testMetrics.unitTestsTotal < 1 || testMetrics.unitTestsPassed !== testMetrics.unitTestsTotal) {
         const reason = `Tests failed: ${testMetrics.unitTestsPassed}/${testMetrics.unitTestsTotal} passed with ${testMetrics.typeErrors} type error(s)`;
+        const transition = await transitionFailure(reason);
+        return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+      }
+      try {
+        refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
+      } catch (err: unknown) {
+        const reason = err instanceof Error ? err.message : String(err);
         const transition = await transitionFailure(reason);
         return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
       }
@@ -1233,6 +1467,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   } else {
     try {
       recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
+      refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
     } catch (err: unknown) {
       const reason = err instanceof Error ? err.message : String(err);
       const transition = await transitionFailure(reason);

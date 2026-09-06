@@ -53,7 +53,6 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
 
   const cleanup = () => {
     const cleanupErrors: string[] = [];
-    let repositoryRemovalFailed = false;
     try {
       const worktreeOutput = execFileSync('git', ['worktree', 'list', '--porcelain'], {
         cwd: repoPath,
@@ -89,9 +88,8 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
       fs.rmSync(repoPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch (err: unknown) {
       cleanupErrors.push(`repository removal: ${err instanceof Error ? err.message : String(err)}`);
-      repositoryRemovalFailed = true;
     }
-    if (repositoryRemovalFailed) {
+    if (cleanupErrors.length > 0) {
       process.emitWarning(`Temporary repository cleanup failed after ${cleanupErrors.length} cleanup operation(s)`, 'BenchmarkCleanupWarning');
     }
   };

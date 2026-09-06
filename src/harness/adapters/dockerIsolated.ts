@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { BaseScenario, ScenarioResult } from '../types.js';
 import { countTokens } from '../tokens.js';
 import { createTempGitRepo } from '../gitHelper.js';
@@ -109,7 +110,7 @@ export class DockerIsolatedAdapter {
       let tempWt: string | undefined;
       try {
         const wtStart = performance.now();
-        tempWt = fs.mkdtempSync(path.join(os.tmpdir(), 'wt-bench-'));
+        tempWt = path.join(os.tmpdir(), `wt-bench-${crypto.randomUUID()}`);
         execFileSync('git', ['worktree', 'add', '--detach', '--force', tempWt, 'main'], { cwd: tempRepo, windowsHide: true });
         worktreeEquivMs = Math.max(0.1, performance.now() - wtStart);
       } finally {
