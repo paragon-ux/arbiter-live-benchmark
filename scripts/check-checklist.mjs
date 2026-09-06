@@ -9,32 +9,14 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { compareVersions, HISTORICAL_VERSIONS } from './baseline-path.mjs';
+import { versionedDocumentCandidates } from './baseline-path.mjs';
 
 const rootDir = resolve(import.meta.dirname, '..');
 const packageData = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf8'));
 const currentVersion = String(packageData.version);
-const isVersionAtMost = (candidate, current) => {
-  const comparison = compareVersions(candidate, current);
-  return comparison !== null && comparison <= 0;
-};
-const historicalVersions = HISTORICAL_VERSIONS.filter((version) => isVersionAtMost(version, currentVersion));
-const versionedCandidates = historicalVersions.flatMap((version) => [
-  resolve(rootDir, 'docs', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, '..', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, '..', 'docs', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-]);
-const currentVersionCandidates = [
-  resolve(rootDir, 'docs', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, '..', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, '..', 'docs', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-];
 const candidates = [
   resolve(rootDir, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  ...currentVersionCandidates,
-  ...versionedCandidates,
+  ...versionedDocumentCandidates(rootDir, currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '..', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '..', 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md')

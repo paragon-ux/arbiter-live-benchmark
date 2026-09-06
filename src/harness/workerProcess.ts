@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import crypto from 'node:crypto';
-import { execFileSync as nodeExecFileSync, spawn, type ExecFileSyncOptions } from 'node:child_process';
+import { execFileSync as nodeExecFileSync, spawn, spawnSync, type ExecFileSyncOptions } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { countTokens } from './tokens.js';
 
@@ -27,12 +27,51 @@ const tscBin = (() => {
   }
 })();
 
+function killProcessTree(pid: number | undefined): void {
+  if (!pid) return;
+  if (process.platform === 'win32') {
+    try {
+      nodeExecFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+        timeout: 5_000,
+      });
+    } catch {}
+    return;
+  }
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try { process.kill(pid, 'SIGTERM'); } catch {}
+  }
+}
+
 function execFileSync(file: string, args: readonly string[], options: ExecFileSyncOptions = {}): string | Buffer {
-  return nodeExecFileSync(file, args, {
+  const spawnOptions: ExecFileSyncOptions = {
     timeout: COMMAND_TIMEOUT_MS,
     killSignal: 'SIGTERM',
     ...options,
-  }) as string | Buffer;
+  };
+  if (process.platform !== 'win32') {
+    (spawnOptions as ExecFileSyncOptions & { detached?: boolean }).detached = true;
+  }
+  const result = spawnSync(file, args, spawnOptions);
+  if (result.error || result.status !== 0) {
+    if (result.signal || (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT') {
+      killProcessTree(result.pid);
+    }
+    const error = result.error instanceof Error
+      ? result.error
+      : new Error(`Command failed: ${file} ${args.join(' ')}`);
+    Object.assign(error, {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      status: result.status,
+      pid: result.pid,
+    });
+    throw error;
+  }
+  return result.stdout as string | Buffer;
 }
 
 function textValue(value: unknown): string {
@@ -206,16 +245,20 @@ function resolveTestTarget(worktreePath: string, testFile: string): string {
   return path.relative(worktreePath, target).replace(/\\/g, '/');
 }
 
-function ensureContainedParent(worktreePath: string, targetFile: string): string {
-  const root = canonicalPath(worktreePath);
+function containedParentSegments(worktreePath: string, targetFile: string): string[] {
   const lexicalRoot = path.resolve(worktreePath);
   const relativeParent = path.relative(lexicalRoot, path.dirname(targetFile));
   if (relativeParent === '..' || relativeParent.startsWith(`..${path.sep}`) || path.isAbsolute(relativeParent)) {
     throw new Error('file operation path resolves outside the assigned worktree');
   }
+  return relativeParent.split(path.sep).filter(Boolean);
+}
+
+function ensureContainedParent(worktreePath: string, targetFile: string): string {
+  const root = canonicalPath(worktreePath);
 
   let current = root;
-  for (const segment of relativeParent.split(path.sep).filter(Boolean)) {
+  for (const segment of containedParentSegments(worktreePath, targetFile)) {
     const candidate = path.join(current, segment);
     let stat: fs.Stats;
     try {
@@ -241,7 +284,54 @@ function ensureContainedParent(worktreePath: string, targetFile: string): string
   return current;
 }
 
+function openContainedFilePosix(worktreePath: string, targetFile: string, flags: number): number {
+  const noFollow = fs.constants.O_NOFOLLOW;
+  const directory = fs.constants.O_DIRECTORY;
+  if (noFollow === undefined || directory === undefined) throw new Error('secure directory-relative file operations are unavailable');
+  const descriptorPath = '/dev/fd';
+  const directoryFlags = fs.constants.O_RDONLY | directory | noFollow;
+  const parentDescriptors: number[] = [];
+  let parentDescriptor = fs.openSync(canonicalPath(worktreePath), directoryFlags);
+  parentDescriptors.push(parentDescriptor);
+  try {
+    for (const segment of containedParentSegments(worktreePath, targetFile)) {
+      const childPath = `${descriptorPath}/${parentDescriptor}/${segment}`;
+      let childDescriptor: number;
+      try {
+        childDescriptor = fs.openSync(childPath, directoryFlags);
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || (flags & fs.constants.O_CREAT) === 0) throw err;
+        fs.mkdirSync(childPath);
+        childDescriptor = fs.openSync(childPath, directoryFlags);
+      }
+      parentDescriptors.push(childDescriptor);
+      parentDescriptor = childDescriptor;
+    }
+
+    const targetPath = `${descriptorPath}/${parentDescriptor}/${path.basename(targetFile)}`;
+    let existed = true;
+    try { fs.lstatSync(targetPath); } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      existed = false;
+    }
+    const exclusiveCreate = !existed && (flags & fs.constants.O_CREAT) !== 0 ? fs.constants.O_EXCL : 0;
+    const descriptor = fs.openSync(targetPath, flags | noFollow | exclusiveCreate, 0o600);
+    try {
+      if (!fs.fstatSync(descriptor).isFile()) throw new Error('file operation path must reference a file');
+      return descriptor;
+    } catch (err) {
+      fs.closeSync(descriptor);
+      throw err;
+    }
+  } finally {
+    for (const descriptor of parentDescriptors.reverse()) {
+      try { fs.closeSync(descriptor); } catch {}
+    }
+  }
+}
+
 function openContainedFile(worktreePath: string, targetFile: string, flags: number): number {
+  if (process.platform !== 'win32') return openContainedFilePosix(worktreePath, targetFile, flags);
   const root = canonicalPath(worktreePath);
   const parent = ensureContainedParent(worktreePath, targetFile);
   const safeTarget = path.join(parent, path.basename(targetFile));
@@ -264,11 +354,24 @@ function openContainedFile(worktreePath: string, targetFile: string, flags: numb
   }
 }
 
+function deleteContainedFile(worktreePath: string, targetFile: string): void {
+  if (!fs.existsSync(path.dirname(targetFile))) return;
+  const parent = ensureContainedParent(worktreePath, targetFile);
+  const safeTarget = path.join(parent, path.basename(targetFile));
+  try {
+    const stat = fs.lstatSync(safeTarget);
+    if (stat.isDirectory()) throw new Error('delete file operation must reference a file');
+    fs.unlinkSync(safeTarget);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+  }
+}
+
 function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] | undefined, ledger: TokenLedger): void {
   for (const op of files || []) {
     const targetFile = resolveContainedPath(worktreePath, op.path, 'file operation path');
     if (op.action === 'delete') {
-      throw new Error('delete file operations are unsupported; use a validated write workflow');
+      deleteContainedFile(worktreePath, targetFile);
     } else if (op.action === 'append' || op.append !== undefined) {
       const content = op.append || '';
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
@@ -466,6 +569,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     const serverProcess = spawn(process.execPath, [arbiterMcpScript], {
       cwd: config.repoPath,
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
       windowsHide: true,
       env: { ...process.env, PATH: process.env.PATH },
     });
@@ -522,7 +626,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
     const retryFailureTransition = async (message: string) => {
       if (failureAttempts >= 8) {
-        fail(message);
+        finishFailure(message);
         return;
       }
       await new Promise((r) => setTimeout(r, 80 * Math.pow(1.5, Math.max(0, failureAttempts - 1))));
@@ -533,9 +637,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       try {
         if (!serverProcess.stdin.destroyed) serverProcess.stdin.end();
       } catch {}
-      try {
-        if (!serverProcess.killed) serverProcess.kill();
-      } catch {}
+      if (!serverProcess.killed) killProcessTree(serverProcess.pid);
     };
 
     let timeout: NodeJS.Timeout;
@@ -570,6 +672,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       finish(output({ error: message, stderr: ledger.stderr || message }));
     };
     const fail = (message: string) => {
+      if (claimedTaskId && failureTransitionActive && !settled) return;
       if (claimedTaskId && failureAttempts === 0 && !settled) {
         sendFailureTransition(message);
         failureTimeout = setTimeout(() => {
@@ -646,7 +749,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       }
 
       if (resp.error) {
-        if (config.shouldFail && resp.id === failureTransitionRequestId) {
+        if (resp.id === failureTransitionRequestId) {
           await retryFailureTransition(`MCP failure transition error for ${claimedTaskId || 'unknown task'}: ${JSON.stringify(resp.error)}`);
           return;
         }
@@ -732,11 +835,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         }
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
         const sha = revision.ok ? revision.stdout.trim() : '';
-        if (!sha) {
-          finish(output({ success: false, error: revision.stderr || 'Unable to read completed task revision' }));
-          return;
-        }
-        commitSha = sha;
+        if (sha) commitSha = sha;
         finish(output({ success: true, commitSha }));
         return;
       }
@@ -745,11 +844,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         const result = resp.result as { content?: Array<{ text?: string }> } | undefined;
         const text = result?.content?.[0]?.text;
         if (!text) {
-          if (config.shouldFail) {
-            await retryFailureTransition('MCP task transition returned no result payload');
-          } else {
-            fail('MCP task transition returned no result payload');
-          }
+          await retryFailureTransition('MCP task transition returned no result payload');
           return;
         }
         let resultData: { ok?: boolean };
@@ -757,14 +852,12 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           resultData = JSON.parse(text) as { ok?: boolean };
         } catch (err: unknown) {
           const message = `Invalid MCP task transition payload: ${err instanceof Error ? err.message : String(err)}`;
-          if (config.shouldFail) await retryFailureTransition(message);
-          else fail(message);
+          await retryFailureTransition(message);
           return;
         }
         if (resultData.ok !== true) {
           const message = `MCP task transition failed for ${claimedTaskId || 'unknown task'}`;
-          if (config.shouldFail) await retryFailureTransition(message);
-          else fail(message);
+          await retryFailureTransition(message);
           return;
         }
         if (!config.shouldFail && worktreePath) {
@@ -1070,14 +1163,11 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       ], attempt > 0);
       const compData = compRes.ok ? parseJson(compRes.stdout) : null;
       if (compRes.ok && compData?.ok === true) {
+        completionSuccess = true;
+        completionError = '';
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
         const sha = revision.ok ? revision.stdout.trim() : '';
-        if (sha) {
-          commitSha = sha;
-          completionSuccess = true;
-        } else {
-          completionError = revision.stderr || 'Unable to read completed task revision';
-        }
+        if (sha) commitSha = sha;
         break;
       }
       completionError = compRes.stderr || 'CLI completion was not acknowledged';
@@ -1090,14 +1180,11 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
         ? statusData.task as Record<string, unknown>
         : undefined;
       if (statusTask?.status === 'COMPLETED') {
+        completionSuccess = true;
+        completionError = '';
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
         const sha = revision.ok ? revision.stdout.trim() : '';
-        if (sha) {
-          completionSuccess = true;
-          commitSha = sha;
-        } else {
-          completionError = revision.stderr || 'Unable to read completed task revision';
-        }
+        if (sha) commitSha = sha;
       }
     }
   }
@@ -1109,13 +1196,84 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   });
 }
 
+function validateConfigRelativePath(value: unknown, label: string): string {
+  if (typeof value !== 'string' || value.trim() === '' || value.includes('\0') || path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value) || value.startsWith('\\')) {
+    throw new Error(`${label} must be a non-empty relative path`);
+  }
+  const root = path.resolve('__worker_config_root__');
+  const resolved = path.resolve(root, value);
+  if (!isWithin(root, resolved, true)) throw new Error(`${label} escapes the assigned worktree`);
+  return value;
+}
+
 function parseWorkerConfig(value: unknown): WorkerTaskConfig {
-  if (!value || typeof value !== 'object') throw new Error('Worker configuration must be a JSON object');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Worker configuration must be a JSON object');
   const config = value as Record<string, unknown>;
   if (typeof config.workerId !== 'string' || config.workerId.trim() === '') throw new Error('Worker configuration requires workerId');
   if (typeof config.repoPath !== 'string' || config.repoPath.trim() === '') throw new Error('Worker configuration requires repoPath');
   if (config.mode !== 'mcp' && config.mode !== 'cli') throw new Error('Worker configuration mode must be mcp or cli');
-  return config as unknown as WorkerTaskConfig;
+
+  const normalized: WorkerTaskConfig = {
+    workerId: config.workerId.trim(),
+    repoPath: config.repoPath,
+    mode: config.mode,
+  };
+
+  if (config.taskId !== undefined) {
+    if (typeof config.taskId !== 'string' || config.taskId.trim() === '') throw new Error('Worker configuration taskId must be a non-empty string');
+    normalized.taskId = config.taskId;
+  }
+  if (config.files !== undefined) {
+    if (!Array.isArray(config.files)) throw new Error('Worker configuration files must be an array');
+    normalized.files = config.files.map((value, index) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Worker file operation ${index} must be an object`);
+      const operation = value as Record<string, unknown>;
+      const file: WorkerFileOperation = {
+        path: validateConfigRelativePath(operation.path, `Worker file operation ${index} path`),
+      };
+      const action = operation.action === undefined ? 'write' : operation.action;
+      if (action !== 'write' && action !== 'append' && action !== 'delete') throw new Error(`Worker file operation ${index} action is invalid`);
+      file.action = action;
+      if (operation.content !== undefined && typeof operation.content !== 'string') throw new Error(`Worker file operation ${index} content must be a string`);
+      if (operation.append !== undefined && typeof operation.append !== 'string') throw new Error(`Worker file operation ${index} append must be a string`);
+      if (operation.content !== undefined && operation.append !== undefined) throw new Error(`Worker file operation ${index} cannot specify both content and append`);
+      if (operation.content !== undefined) file.content = operation.content;
+      if (operation.append !== undefined) file.append = operation.append;
+      return file;
+    });
+  }
+  for (const key of ['commitMessage', 'failError'] as const) {
+    const candidate = config[key];
+    if (candidate !== undefined && typeof candidate !== 'string') throw new Error(`Worker configuration ${key} must be a string`);
+    if (typeof candidate === 'string') normalized[key] = candidate;
+  }
+  for (const key of ['runTypecheck', 'runTests', 'shouldFail'] as const) {
+    const candidate = config[key];
+    if (candidate !== undefined && typeof candidate !== 'boolean') throw new Error(`Worker configuration ${key} must be boolean`);
+    if (typeof candidate === 'boolean') normalized[key] = candidate;
+  }
+  if (config.testFile !== undefined) normalized.testFile = validateConfigRelativePath(config.testFile, 'Worker testFile');
+  if (config.crashWithSignal !== undefined) {
+    if (config.crashWithSignal !== 'SIGKILL' && config.crashWithSignal !== 'SIGTERM') throw new Error('Worker configuration crashWithSignal is invalid');
+    normalized.crashWithSignal = config.crashWithSignal;
+  }
+  if (config.holdLeaseMs !== undefined) {
+    if (typeof config.holdLeaseMs !== 'number' || !Number.isFinite(config.holdLeaseMs) || !Number.isInteger(config.holdLeaseMs) || config.holdLeaseMs < 0 || config.holdLeaseMs > MCP_TIMEOUT_MS) {
+      throw new Error(`Worker configuration holdLeaseMs must be an integer from 0 to ${MCP_TIMEOUT_MS}`);
+    }
+    normalized.holdLeaseMs = config.holdLeaseMs;
+  }
+  if (config.discovery !== undefined) {
+    if (!config.discovery || typeof config.discovery !== 'object' || Array.isArray(config.discovery)) throw new Error('Worker configuration discovery must be an object');
+    const discovery = config.discovery as Record<string, unknown>;
+    const parsedDiscovery: DiscoveryRequest = { path: validateConfigRelativePath(discovery.path, 'Worker discovery path') };
+    if (discovery.language !== undefined) {
+      if (typeof discovery.language !== 'string' || discovery.language.trim() === '') throw new Error('Worker discovery language must be a non-empty string');
+      parsedDiscovery.language = discovery.language.trim();
+    }
+    normalized.discovery = parsedDiscovery;
+  }
+  return normalized;
 }
 
 async function main(): Promise<void> {

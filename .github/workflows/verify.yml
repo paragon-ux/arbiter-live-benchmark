@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: arbiter-live-benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -22,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: paragon-ux/Arbiter
-          ref: 83ffbeca756318710333bc4f245b09760274ce7a
+          ref: 6149c9a8991cc46587213c04ad1e56863c42e549
           path: Arbiter
 
       - name: Check out Waymark sibling dependency

@@ -17,15 +17,25 @@ export function compareVersions(left, right) {
   return 0;
 }
 
+export function supportedVersionsAtMost(currentVersion) {
+  return [currentVersion, ...HISTORICAL_VERSIONS.filter((version) => {
+    const comparison = compareVersions(version, currentVersion);
+    return version !== currentVersion && comparison !== null && comparison <= 0;
+  })];
+}
+
+export function versionedDocumentCandidates(rootDir, currentVersion, filename) {
+  return supportedVersionsAtMost(currentVersion).flatMap((version) => [
+    resolve(rootDir, 'docs', version, filename),
+    resolve(rootDir, version, filename),
+    resolve(rootDir, '..', version, filename),
+    resolve(rootDir, '..', 'docs', version, filename),
+  ]);
+}
+
 export function resolveBaselinePath(rootDir) {
   const packageData = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf8'));
-  const versions = [
-    packageData.version,
-    ...HISTORICAL_VERSIONS.filter((version) => {
-      const comparison = compareVersions(version, packageData.version);
-      return version !== packageData.version && comparison !== null && comparison <= 0;
-    }),
-  ];
+  const versions = supportedVersionsAtMost(packageData.version);
 
   for (const version of versions) {
     const candidate = resolve(rootDir, `BASELINE_v${version}.json`);
