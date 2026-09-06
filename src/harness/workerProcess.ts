@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import crypto from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { countTokens } from './tokens.js';
@@ -75,6 +76,11 @@ export interface WorkerFileOperation {
   action?: 'write' | 'append' | 'delete';
 }
 
+export interface DiscoveryRequest {
+  path: string;
+  language?: string;
+}
+
 export interface WorkerTaskConfig {
   workerId: string;
   repoPath: string;
@@ -89,6 +95,7 @@ export interface WorkerTaskConfig {
   failError?: string;
   crashWithSignal?: 'SIGKILL' | 'SIGTERM';
   holdLeaseMs?: number;
+  discovery?: DiscoveryRequest;
 }
 
 export interface WorkerProcessOutput {
@@ -104,6 +111,8 @@ export interface WorkerProcessOutput {
   stdout: string;
   stderr: string;
   tokensMeasured: number;
+  discoveryResult?: Record<string, unknown>;
+  discoveryNoWrite?: boolean;
   error?: string;
 }
 
@@ -131,6 +140,46 @@ function makeEarlyFailure(config: WorkerTaskConfig): WorkerProcessOutput {
     tokensMeasured: 0,
     error: config.failError || 'Deliberate worker failure',
   };
+}
+
+function snapshotTree(root: string): string[] {
+  if (!fs.existsSync(root)) return [];
+  const entries = fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  const result: string[] = [];
+  for (const entry of entries) {
+    const absolute = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...snapshotTree(absolute).map((item) => `${entry.name}/${item}`));
+    } else if (entry.isSymbolicLink()) {
+      result.push(`${entry.name}:symlink:${fs.readlinkSync(absolute)}`);
+    } else if (entry.isFile()) {
+      result.push(`${entry.name}:file:${crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex')}`);
+    }
+  }
+  return result;
+}
+
+function discoveryStateSnapshot(repoPath: string, worktreePath: string, relativePath: string): string {
+  const databaseDir = path.join(repoPath, '.arbiter');
+  const databaseFiles = fs.existsSync(databaseDir)
+    ? fs.readdirSync(databaseDir).filter((name) => name.startsWith('arbiter.db')).sort().map((name) => {
+      const filePath = path.join(databaseDir, name);
+      return `${name}:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
+    })
+    : [];
+  const sourcePath = path.resolve(worktreePath, relativePath);
+  const sourceHash = crypto.createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
+  const gitStatus = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+    cwd: worktreePath,
+    windowsHide: true,
+    encoding: 'utf8',
+  });
+  return JSON.stringify({
+    sourceHash,
+    gitStatus,
+    databaseFiles,
+    waymark: snapshotTree(path.join(worktreePath, '.waymark')),
+  });
 }
 
 async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string): Promise<WorkerProcessOutput> {
@@ -461,9 +510,12 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       tokensMeasured += countTokens(out);
       return { ok: true, stdout: out, stderr: '' };
     } catch (err: unknown) {
-      const stderr = String(err);
+      const failure = err as { stdout?: string; stderr?: string; message?: string };
+      const stdout = typeof failure.stdout === 'string' ? failure.stdout : '';
+      const stderr = failure.stderr || failure.message || String(err);
       tokensMeasured += countTokens(stderr);
-      return { ok: false, stdout: '', stderr };
+      tokensMeasured += countTokens(stdout);
+      return { ok: false, stdout, stderr };
     }
   };
 
@@ -526,6 +578,46 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let unitTestsPassed = 0;
   let unitTestsTotal = 0;
   const waymarkTrajectoryId = claimData.waymarkTrajectoryId || claimData.waymark_trajectory_id;
+  let discoveryResult: Record<string, unknown> | undefined;
+  let discoveryNoWrite: boolean | undefined;
+
+  if (config.discovery) {
+    const discoveryPath = config.discovery.path.replace(/\\/g, '/');
+    const before = discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
+    const discoveryRes = execArbiter([
+      'discover-symbols',
+      '--task', taskId,
+      '--worker', config.workerId,
+      '--lease-epoch', String(claimData.leaseEpoch ?? 1),
+      '--path', discoveryPath,
+      ...(config.discovery.language ? ['--language', config.discovery.language] : []),
+    ]);
+    try {
+      discoveryResult = JSON.parse(discoveryRes.stdout.trim() || '{}') as Record<string, unknown>;
+    } catch {
+      discoveryResult = { ok: false, code: 'ERR_DISCOVERY_RESPONSE', message: discoveryRes.stderr || 'Invalid discovery response' };
+    }
+    discoveryNoWrite = before === discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
+    if (!discoveryRes.ok || discoveryResult.ok !== true) {
+      execArbiter(['fail', '--task', taskId, '--worker', config.workerId, '--error', String(discoveryResult.message || 'Discovery failed')]);
+      return {
+        pid: process.pid,
+        workerId: config.workerId,
+        taskId,
+        worktreePath,
+        success: false,
+        typeErrors,
+        unitTestsPassed,
+        unitTestsTotal,
+        stdout: discoveryRes.stdout,
+        stderr: discoveryRes.stderr,
+        tokensMeasured,
+        discoveryResult,
+        discoveryNoWrite,
+        error: String(discoveryResult.message || 'Discovery failed'),
+      };
+    }
+  }
 
   if (config.files) {
     for (const op of config.files) {
@@ -624,6 +716,8 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     stdout: `Task ${taskId} completed by PID ${process.pid}`,
     stderr: '',
     tokensMeasured,
+    discoveryResult,
+    discoveryNoWrite,
   };
 }
 

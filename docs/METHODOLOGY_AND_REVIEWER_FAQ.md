@@ -1,6 +1,6 @@
 # Scientific Methodology & Independent Reviewer FAQ: Multi-Agent Orchestration, Subprocess Isolation, and Cloud API Boundaries
 
-**Version:** 2.2.1
+**Version:** 2.3.0
 **Target Repository:** `arbiter-live-benchmark`  
 **Audience:** Independent reviewers, distributed systems researchers, benchmark auditors, and agent harness developers.
 
@@ -209,7 +209,7 @@ The Arbiter CI pipeline tests across three operating systems on every commit and
 - **macOS** (`macos-latest`)
 - **Windows** (`windows-latest`)
 
-Running all 22 scenarios across a 3-OS matrix with 5 to 10 statistical trials would generate thousands of live LLM inference calls per CI run. This would:
+Running all 23 scenarios across a 3-OS matrix with 5 to 10 statistical trials would generate thousands of live LLM inference calls per CI run. This would:
 - Incur hundreds of dollars per day in external token costs.
 - Increase CI pipeline runtimes from **~2 minutes** to **over 45 minutes**.
 - Require storing sensitive cloud API secrets across open-source CI runner environments, creating security and hygiene vulnerabilities.
@@ -256,9 +256,9 @@ An astute reviewer comparing repository files might notice apparent discrepancie
 2. **The 3.80 vs. 4.20 Ratio**: The standard literature rule of thumb for English code tokenization is approximately 3.8 chars/token, which was historically used as an uncalibrated default fallback parameter. Across all 15 source files in Arbiter's benchmark targets (11,137 total characters), compiled `cl100k_base` BPE yields **2,649 tokens**, producing an empirical aggregate ratio of **4.20 chars/token** ($11,137 / 2,649$).
 
 ### 6.2 Measured Token Conservation via Waymark
-The v2.2.1 baseline reports **69% continuity savings**. Scenario `001` consumed 3,083 total tokens; scenario `002` consumed 782 total tokens, including a 194-token Waymark resume packet. The percentage is computed by the harness against its measured cold target context, so the resume packet is not the full Waymark scenario total and the displayed scenario totals are not the numerator and denominator of the reported percentage.
+The v2.3.0 baseline reports **69% continuity savings**. Scenario `001` consumed 3,079 total tokens; scenario `002` consumed 781 total tokens, including a 196-token Waymark resume packet. The percentage is computed by the harness against its measured cold target context, so the resume packet is not the full Waymark scenario total and the displayed scenario totals are not the numerator and denominator of the reported percentage.
 - When an agent experiences context compaction without Waymark, it must re-read repository directory trees, file structures, and whole modules to re-anchor its position (consuming 3,000 to 14,000+ tokens).
-- With Waymark, the agent receives a compact, structured trajectory recording verified AST line spans and causal breadcrumbs; the v2.2.1 baseline measured 194 tokens for the resume packet.
+- With Waymark, the agent receives a compact, structured trajectory recording verified AST line spans and causal breadcrumbs; the v2.3.0 baseline measured 196 tokens for the resume packet.
 
 Because a cloud LLM is billed strictly on the prompt tokens sent to its context window, **the token savings measured by Arbiter's compiled BPE tokenizer are identical to what you would be billed on Gemini, Claude, or GPT.**
 
@@ -341,20 +341,20 @@ cd ../arbiter-live-benchmark
 npm install
 npm run verify
 ```
-`npm run verify` executes the full suite of 41 unit and integration tests across 9 Node test suites in 8 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 22-scenario benchmark and versioned-baseline comparison.
+`npm run verify` executes the full suite of 39 unit and integration tests across 13 Node test suites in 13 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 23-scenario benchmark and versioned-baseline comparison.
 
-### Step 2: Run All 22 Scenarios in Live Subprocess Mode
+### Step 2: Run All 23 Scenarios in Live Subprocess Mode
 ```bash
 npm run benchmark
 ```
-This executes all 22 scenarios, spawning real OS child processes, creating real Git worktrees, executing SQLite WAL transactions, and compiling code.
+This executes all 23 scenarios, spawning real OS child processes, creating real Git worktrees, executing SQLite WAL transactions, and compiling code.
 
 ### Step 3: Run Multi-Trial Statistical Verification
 To verify that timings are statistically stable across repeated runs:
 ```bash
 node dist/src/cli/index.js --all --trials 5 --verbose
 ```
-This computes Median, P95, and Standard Deviation across 5 iterations for all 22 scenarios.
+This computes Median, P95, and Standard Deviation across 5 iterations for all 23 scenarios.
 
 ### Step 4: Run Tier 2 with a Live Agent Harness (Reviewer Mode)
 Reviewers can execute live LLM agents across isolated worktrees using the Antigravity CLI (`agy`) or custom runner:
@@ -364,7 +364,7 @@ node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode agy
 ```
 In this mode, Arbiter provisions the worktree, acquires the lease, launches the live LLM agent, monitors the agent's PID, and merges the resulting branch upon test completion.
 
-#### Authoritative Live Verification Receipt (v2.2.1)
+#### Authoritative Live Verification Receipt (v2.3.0)
 The following execution receipt was generated on live hardware executing Google Gemini via `agy`:
 
 | Metric | Measured Live Result | Verification Detail |

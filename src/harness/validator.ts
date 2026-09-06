@@ -23,7 +23,8 @@ export const VALID_SCENARIO_MODES = [
   'n_way_merge_conflicts',
   'concurrent_main_drift',
   'mcp_protocol',
-  'stale_heartbeat'
+  'stale_heartbeat',
+  'symbol_discovery'
 ] as const;
 
 export type ValidScenarioMode = typeof VALID_SCENARIO_MODES[number];

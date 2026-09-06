@@ -1,0 +1,17 @@
+{
+  "id": "023-symbol-discovery",
+  "title": "Real Structured AST Symbol Discovery",
+  "description": "Uses a live Arbiter CLI subprocess, active lease, claimed worktree, and Waymark WASM parser to discover TypeScript symbols without changing owned state.",
+  "targetRepo": "targets/microservice-auth",
+  "mode": "symbol_discovery",
+  "concurrency": 1,
+  "timeoutMs": 30000,
+  "discoveryPath": "src/auth.ts",
+  "language": "typescript",
+  "expectedMetrics": {
+    "symbolsVerified": true,
+    "noWrite": true,
+    "worktreeIsolated": true,
+    "mainClean": true
+  }
+}

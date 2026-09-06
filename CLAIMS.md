@@ -1,6 +1,6 @@
 # Benchmark Quantitative Claims Registry
 
-**Document Version:** 2.2.1-PROD
+**Document Version:** 2.3.0-PROD
 **Single Source of Truth for Benchmark & Performance Claims**
 
 ```json
@@ -25,10 +25,10 @@
   {
     "claim": "Total empirical benchmark scenarios",
     "target": "scenario_count",
-    "expectedValue": 22,
+    "expectedValue": 23,
     "tolerancePercent": 0,
     "generatingCommand": "node -e \"const fs = require('fs'); process.stdout.write(String(fs.readdirSync('./scenarios').filter(f => f.endsWith('.json')).length));\"",
-    "lastVerifiedDate": "2026-09-05"
+    "lastVerifiedDate": "2026-09-06"
   },
   {
     "claim": "Formal Node test runner suites count",

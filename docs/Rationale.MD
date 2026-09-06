@@ -95,7 +95,7 @@ Scientific evaluation requires **deterministic repeatability** for continuous in
 - Executes real Arbiter WorktreeManager, TaskGraph, MergeQueue, LeaseWatchdog, and ArbiterDatabase.
 - Provisions real ephemeral Git worktrees, feature branches, and SQLite WAL transactions for Git-intensive scenarios.
 - Lightweight in-memory database operations for graph, lease, and continuity scenarios.
-- Deterministic scenario ordering with real wall-clock timing across all 22 scenarios.
+- Deterministic scenario ordering with real wall-clock timing across all 23 scenarios.
 - Zero external API dependencies; runs seamlessly on Linux, macOS, and Windows CI.
 
 ### Tier 1.5: Subprocess MCP Adapter
@@ -118,7 +118,7 @@ Scientific evaluation requires **deterministic repeatability** for continuous in
 ## 6. Summary of Architectural Findings
 
 The empirical findings from Arbiter Benchmark confirm:
-1. **Token Conservation**: The v2.2.1 baseline recorded a 194-token Waymark resume packet within a 782-token scenario and reported 69% continuity savings. The percentage is computed by the harness against its measured cold target context; the resume packet is not the full scenario total.
+1. **Token Conservation**: The v2.3.0 baseline recorded a 196-token Waymark resume packet within a 781-token scenario and reported 69% continuity savings. The percentage is computed by the harness against its measured cold target context; the resume packet is not the full scenario total.
 2. **Deterministic Isolation**: Ephemeral Git worktrees prevent 100% of concurrent file collisions without the resource overhead of Docker or VMs.
 3. **Sub-Millisecond Coordination**: Native SQLite in-memory and WAL-mode scheduling executes DAG dependency resolution and watchdog lease reclamation in **<5ms**.
 4. **Resilience Under Chaos**: Atomic transactions and fail-closed rollback maintain pristine working copy status even during mid-merge signal aborts, disk exhaustion, and cyclic dependency injection.

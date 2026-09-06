@@ -11,9 +11,9 @@ const rootDir = path.resolve(__dirname, '../..');
 const scenariosDir = path.resolve(rootDir, 'scenarios');
 
 describe('Scenario Schema Validation Suite', () => {
-  it('verifies each of the 22 scenario JSON files strictly satisfies the schema and target constraints', () => {
+  it('verifies each of the 23 scenario JSON files strictly satisfies the schema and target constraints', () => {
     const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json')).sort();
-    assert.equal(files.length, 22, `Expected 22 scenarios, found ${files.length}`);
+    assert.equal(files.length, 23, `Expected 23 scenarios, found ${files.length}`);
 
     for (const f of files) {
       const content = fs.readFileSync(path.join(scenariosDir, f), 'utf8').replace(/^\uFEFF/, '');
@@ -27,4 +27,3 @@ describe('Scenario Schema Validation Suite', () => {
     }
   });
 });
-

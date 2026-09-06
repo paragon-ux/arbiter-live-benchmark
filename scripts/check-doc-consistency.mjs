@@ -23,6 +23,7 @@ import { resolve, basename } from 'node:path';
 import { resolveBaselinePath } from './baseline-path.mjs';
 
 const rootDir = resolve(import.meta.dirname, '..');
+const EXPECTED_SCENARIO_COUNT = 23;
 const baselinePath = resolveBaselinePath(rootDir);
 const baselineFile = basename(baselinePath);
 
@@ -79,8 +80,8 @@ function checkScenarios() {
     scenarioTitles.set(data.id, data.title);
   }
 
-  if (scenarioTitles.size !== 22) {
-    errors.push(`Expected 22 scenario JSON files, found ${scenarioTitles.size}`);
+  if (scenarioTitles.size !== EXPECTED_SCENARIO_COUNT) {
+    errors.push(`Expected ${EXPECTED_SCENARIO_COUNT} scenario JSON files, found ${scenarioTitles.size}`);
   }
 
   // 2. Current versioned baseline
@@ -152,7 +153,7 @@ function checkScenarios() {
     process.exit(1);
   }
 
-  console.log(`Checked 22 scenarios across 5 sources: 0 mismatches.`);
+  console.log(`Checked ${EXPECTED_SCENARIO_COUNT} scenarios across 5 sources: 0 mismatches.`);
   process.exit(0);
 }
 

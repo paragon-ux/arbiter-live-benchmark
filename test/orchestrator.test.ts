@@ -9,10 +9,10 @@ const __dirname = path.dirname(__filename);
 const scenariosDir = path.resolve(__dirname, '../../scenarios');
 
 describe('BenchmarkOrchestrator Suite', () => {
-  it('loads all 22 scenario files from scenarios directory', () => {
+  it('loads all 23 scenario files from scenarios directory', () => {
     const orchestrator = new BenchmarkOrchestrator();
     const scenarios = orchestrator.loadScenarios(scenariosDir);
-    assert.equal(scenarios.length, 22);
+    assert.equal(scenarios.length, 23);
     const ids = scenarios.map(s => s.id);
     assert.ok(ids.includes('001-single-agent-cold'));
     assert.ok(ids.includes('004-parallel-arbiter'));
@@ -24,6 +24,7 @@ describe('BenchmarkOrchestrator Suite', () => {
     assert.ok(ids.includes('020-concurrent-main-drift'));
     assert.ok(ids.includes('021-mcp-protocol-resilience'));
     assert.ok(ids.includes('022-watchdog-heartbeat-stale-reclaim'));
+    assert.ok(ids.includes('023-symbol-discovery'));
   });
 
   it('filters scenarios by scenarioId when specified', () => {

@@ -148,6 +148,14 @@ export interface StaleHeartbeatDetails {
   waymarkLockRecovered: boolean;
 }
 
+export interface SymbolDiscoveryDetails {
+  symbolsVerified: boolean;
+  noWrite: boolean;
+  worktreeIsolated: boolean;
+  mainClean: boolean;
+  discoveredLanguage: string;
+}
+
 export type TypedScenarioDetails =
   | ColdExplorationDetails
   | WaymarkContinuityDetails
@@ -168,7 +176,8 @@ export type TypedScenarioDetails =
   | NWayConflictDetails
   | UpstreamMainDriftDetails
   | McpProtocolDetails
-  | StaleHeartbeatDetails;
+  | StaleHeartbeatDetails
+  | SymbolDiscoveryDetails;
 
 export interface ScenarioDetailsMap {
   '001-single-agent-cold': ColdExplorationDetails;
@@ -193,6 +202,7 @@ export interface ScenarioDetailsMap {
   '020-concurrent-main-drift': UpstreamMainDriftDetails;
   '021-mcp-protocol-resilience': McpProtocolDetails;
   '022-watchdog-heartbeat-stale-reclaim': StaleHeartbeatDetails;
+  '023-symbol-discovery': SymbolDiscoveryDetails;
 }
 
 export type ScenarioDetails = Record<string, any>;

@@ -167,6 +167,8 @@ export class SubprocessMcpAdapter {
           return await this.runMcpProtocolResilience(scenario, collector);
         case '022-watchdog-heartbeat-stale-reclaim':
           return await this.runWatchdogHeartbeatStaleReclaim(scenario, collector);
+        case '023-symbol-discovery':
+          return await this.runSymbolDiscovery(scenario, collector);
         default:
           return await this.runGenericLiveScenario(scenario, collector);
       }
@@ -1336,6 +1338,84 @@ export class SubprocessMcpAdapter {
         metrics,
       };
     } finally {
+      cleanup();
+    }
+  }
+
+  // 023: Real lease-fenced structured discovery through the Arbiter CLI subprocess
+  private async runSymbolDiscovery(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
+    const targetPath = path.resolve(rootDir, (scenario.targetRepo as string) || 'targets/microservice-auth');
+    const { repoPath, cleanup } = createTempGitRepo(targetPath);
+    const dbPath = path.join(repoPath, '.arbiter', 'arbiter.db');
+    const taskId = 'task-symbol-discovery';
+    try {
+      const db = new ArbiterDatabase(dbPath);
+      makeTask(db, {
+        id: taskId,
+        title: scenario.title,
+        description: scenario.description,
+      });
+      db.close();
+
+      const workerOutput = await spawnWorkerSubprocess({
+        workerId: 'worker-symbol-discovery',
+        repoPath,
+        mode: 'cli',
+        discovery: {
+          path: String(scenario.discoveryPath || 'src/auth.ts'),
+          language: typeof scenario.language === 'string' ? scenario.language : 'typescript',
+        },
+      });
+
+      const result = workerOutput.discoveryResult;
+      const symbols = Array.isArray(result?.symbols) ? result.symbols as Array<Record<string, any>> : [];
+      const validPosition = (position: unknown): boolean => {
+        const value = position as Record<string, unknown> | null;
+        return Boolean(value && Number.isInteger(value.line) && Number.isInteger(value.column) && Number(value.line) >= 1 && Number(value.column) >= 0);
+      };
+      const symbolsVerified = result?.ok === true
+        && result.path === String(scenario.discoveryPath || 'src/auth.ts')
+        && result.language === String(scenario.language || 'typescript')
+        && symbols.some((symbol) => symbol.name === 'AuthService' && symbol.kind === 'class')
+        && symbols.some((symbol) => symbol.name === 'authenticateUser' && symbol.kind === 'method')
+        && symbols.every((symbol) => typeof symbol.name === 'string' && typeof symbol.kind === 'string' && validPosition(symbol.start) && validPosition(symbol.end));
+      const noWrite = workerOutput.discoveryNoWrite === true;
+      const worktreeIsolated = typeof workerOutput.worktreePath === 'string'
+        && path.resolve(workerOutput.worktreePath) !== path.resolve(repoPath)
+        && workerOutput.worktreePath.includes(path.join('.arbiter', 'worktrees'));
+      const mainClean = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+        cwd: repoPath,
+        windowsHide: true,
+        encoding: 'utf8',
+      }).trim() === '';
+      const passed = workerOutput.success && symbolsVerified && noWrite && worktreeIsolated && mainClean;
+
+      collector.addTokens(workerOutput.tokensMeasured);
+      collector.setAccuracy(passed ? 100 : 0);
+      collector.setMainValidity(mainClean);
+      collector.setDetail('symbolsVerified', symbolsVerified);
+      collector.setDetail('noWrite', noWrite);
+      collector.setDetail('worktreeIsolated', worktreeIsolated);
+      collector.setDetail('mainClean', mainClean);
+      collector.setDetail('discoveredLanguage', String(result?.language || 'unknown'));
+      collector.setDetail('symbolCount', symbols.length);
+
+      const metrics = collector.finish();
+      return {
+        scenarioId: scenario.id,
+        title: scenario.title,
+        tier: 'subprocess_mcp',
+        passed,
+        metrics,
+        error: passed ? undefined : workerOutput.error || 'Structured discovery evidence failed',
+      };
+    } finally {
+      const cleanupDb = new ArbiterDatabase(dbPath);
+      cleanupDb.releaseWorkerLease('worker-symbol-discovery', taskId);
+      cleanupDb.close();
+      const worktrees = new WorktreeManager(repoPath);
+      try { worktrees.removeWorktree(taskId); } catch {}
+      try { worktrees.deleteBranch(taskId); } catch {}
       cleanup();
     }
   }

@@ -4,12 +4,12 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 
 ---
 
-## 1. Master Scenario Taxonomy (001–022)
+## 1. Master Scenario Taxonomy (001–023)
 
 | Scenario ID | Title | Tier | Category | Focus / Failure Mode |
 | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Single Agent Cold Exploration (Baseline) | Tier 1 / 1.5 / 2 | Core Continuity | v2.2.1 baseline cold scenario: 3,083 total tokens. |
-| **`002-single-agent-waymark`** | Single Agent Waymark In-Flight Continuity | Tier 1 / 1.5 / 2 | Core Continuity | v2.2.1 baseline: 194-token resume packet inside 782 total tokens; 69% reported continuity savings. |
+| **`001-single-agent-cold`** | Single Agent Cold Exploration (Baseline) | Tier 1 / 1.5 / 2 | Core Continuity | v2.3.0 baseline cold scenario: 3,079 total tokens. |
+| **`002-single-agent-waymark`** | Single Agent Waymark In-Flight Continuity | Tier 1 / 1.5 / 2 | Core Continuity | v2.3.0 baseline: 196-token resume packet inside 781 total tokens; 69% reported continuity savings. |
 | **`003-parallel-no-isolation`** | Parallel Multi-Agent Chaos (No Isolation Baseline) | Tier 1 / 1.5 / 2 | Chaos / Isolation | Uncoordinated concurrent agents stomping shared working directory. |
 | **`004-parallel-arbiter`** | Parallel Multi-Agent Arbiter Worktree Swarm | Tier 1 / 1.5 / 2 | Workspace Isolation | 3 concurrent agents on dedicated ephemeral worktrees with sequential merge. |
 | **`005-dag-dependencies`** | DAG Task Scheduling & Dependency Unblocking | Tier 1 / 1.5 / 2 | Orchestration | 12-task dependency graph resolved via Kahn topological sort. |
@@ -30,6 +30,7 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 | **`020-concurrent-main-drift`** | Concurrent Upstream Main Drift & Auto-Rebase Synchronization | Tier 1 / 1.5 / 2 | Upstream Sync | Injected upstream commits during branch work; 3-way synchronization without data loss. |
 | **`021-mcp-protocol-resilience`** | Tier 1.5 Subprocess MCP Protocol Boundary & Tool Calling Resilience | Tier 1.5 (Subprocess)| Protocol Interface | Stdio JSON-RPC 2.0 tool calls, schema enforcement, and protocol error isolation. |
 | **`022-watchdog-heartbeat-stale-reclaim`**| Watchdog Stale Heartbeat Detection & Fault-Tolerant Task Recovery | Tier 1 / 1.5 / 2 | Process Resilience | Recovers leases when worker PID is alive but heartbeat timed out (frozen/partitioned). |
+| **`023-symbol-discovery`** | Real Structured AST Symbol Discovery | Tier 1.5 (Subprocess) | AST Safety | Lease-fenced TypeScript symbol discovery through the real Waymark WASM parser with no-write verification. |
 
 ---
 
@@ -71,7 +72,7 @@ Every scenario fixture lives in `scenarios/<id>.json` and must adhere to the fol
 ## 3. Determinism & Reproducibility Rules
 
 To preserve reproducible regression verification on CI:
-1. **Deterministic Scenario Ordering**: Scenarios execute in fixed ID order (001→022) with consistent configuration.
+1. **Deterministic Scenario Ordering**: Scenarios execute in fixed ID order (001→023) with consistent configuration.
 2. **Metric Determinism & Wall-Clock Timing**: Structural and token metrics (pass/fail status, accuracy percentage, branch validity, token consumption) are deterministic across runs. Timing metrics (`durationMs`) measure real wall-clock performance via `performance.now()` and live Git operations, and are subject to hardware variance.
 3. **Timing Variance**: Scenarios that perform real Git I/O will produce varying `durationMs` across runs. Non-timing fields (pass/fail, token counts, accuracy) remain stable across runs on the same platform.
 

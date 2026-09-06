@@ -46,7 +46,8 @@ const SCENARIO_META = {
   '019-n-way-merge-conflicts': { mode: 'N-Way Conflict & Quarantine' },
   '020-concurrent-main-drift': { mode: 'Upstream Drift Auto-Rebase' },
   '021-mcp-protocol-resilience': { mode: 'Subprocess MCP Protocol Boundary' },
-  '022-watchdog-heartbeat-stale-reclaim': { mode: 'Watchdog Stale Heartbeat Recovery' }
+  '022-watchdog-heartbeat-stale-reclaim': { mode: 'Watchdog Stale Heartbeat Recovery' },
+  '023-symbol-discovery': { mode: 'Structured AST Symbol Discovery' }
 };
 
 export function formatLatency(durationMs) {

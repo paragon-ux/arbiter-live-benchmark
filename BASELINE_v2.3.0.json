@@ -1,0 +1,647 @@
+{
+  "timestamp": "2026-09-06T07:13:28.168Z",
+  "nodeVersion": "v22.19.0",
+  "platform": "win32 (x64)",
+  "tier": "subprocess_mcp",
+  "trials": 1,
+  "totalScenarios": 23,
+  "passedScenarios": 23,
+  "failedScenarios": 0,
+  "totalDurationMs": 165993.09,
+  "averageSavingsPercent": 69,
+  "heapUsedMb": 7.38,
+  "results": [
+    {
+      "scenarioId": "001-single-agent-cold",
+      "title": "Single Agent Cold Exploration (Baseline)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 5833.26,
+        "tokensTotal": 3079,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "targetCodebase": "microservice-auth",
+          "fileCountScanned": 13,
+          "bytesScanned": 9953,
+          "workerPid": 24164,
+          "compactionRecoveryType": "COLD_REREAD"
+        },
+        "continuitySavingsPercent": 0
+      },
+      "rawDurationMs": 5833.26,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 5833.26,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "002-single-agent-waymark",
+      "title": "Single Agent Waymark In-Flight Continuity",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 4758.05,
+        "tokensTotal": 781,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "waymarkResumeTokens": 196,
+          "workerPid": 28016,
+          "continuityStatus": "FRESH"
+        },
+        "waymarkResumeTokens": 196,
+        "tokensSaved": 1713,
+        "continuitySavingsPercent": 69
+      },
+      "rawDurationMs": 4758.05,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 4758.05,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "003-parallel-no-isolation",
+      "title": "Parallel Multi-Agent Chaos (No Isolation Baseline)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 1075.6,
+        "tokensTotal": 0,
+        "conflictsDetected": 1,
+        "conflictsResolved": 0,
+        "mainBranchValid": false,
+        "accuracyPercent": 50,
+        "details": {
+          "dirtyWorkingTree": true,
+          "clobberedFile": "src/auth.ts",
+          "isolationPreserved": false
+        }
+      },
+      "rawDurationMs": 1075.6,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 1075.6,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "004-parallel-arbiter",
+      "title": "Parallel Multi-Agent Arbiter Worktree Swarm",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 9328.92,
+        "tokensTotal": 1747,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "worktreesProvisioned": 3,
+          "worktreesIsolated": true,
+          "workerPids": [
+            26436,
+            3712,
+            20212
+          ]
+        },
+        "worktreesProvisioned": 3,
+        "worktreesIsolated": true
+      },
+      "rawDurationMs": 9328.92,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 9328.92,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "005-dag-dependencies",
+      "title": "DAG Task Scheduling & Dependency Unblocking",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 3941.35,
+        "tokensTotal": 605,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "dagNodesResolved": 3,
+          "topologicalSortValid": true,
+          "topologicalSortLatencyMs": 0.589
+        }
+      },
+      "rawDurationMs": 3941.35,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 3941.35,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "006-conflict-quarantine",
+      "title": "Merge Conflict Fail-Closed Rollback & Quarantine",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 6771.28,
+        "tokensTotal": 1190,
+        "conflictsDetected": 1,
+        "conflictsResolved": 1,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "quarantineStatus": "RESOLVED",
+          "rollbackCommand": "git merge --abort"
+        }
+      },
+      "rawDurationMs": 6771.28,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 6771.28,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "007-watchdog-dead-worker",
+      "title": "Zero-Daemon Watchdog Dead PID Lease Recovery",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 2896.1,
+        "tokensTotal": null,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "livenessProbe": "process.kill(pid, 0)",
+          "pidAlive": false,
+          "leaseReclaimed": true
+        }
+      },
+      "rawDurationMs": 2896.1,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 2896.1,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "008-agent-semantic-correctness",
+      "title": "Agent Semantic Correctness & Typecheck (Refactoring)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 7076.47,
+        "tokensTotal": 784,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "typeErrors": 0,
+          "unitTestsPassed": 2,
+          "unitTestsTotal": 2,
+          "semanticTestsPassed": true
+        }
+      },
+      "rawDurationMs": 7076.47,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 7076.47,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "009-parallel-10-workers",
+      "title": "High-Concurrency Multi-Agent Swarm (10 Workers)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 28374.45,
+        "tokensTotal": 6432,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "worktreesProvisioned": 10,
+          "worktreesIsolated": true,
+          "workerPids": [
+            25924,
+            7772,
+            19972,
+            25136,
+            8268,
+            20268,
+            26696,
+            9276,
+            13160,
+            9432
+          ]
+        },
+        "worktreesProvisioned": 10,
+        "worktreesIsolated": true
+      },
+      "rawDurationMs": 28374.45,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 28374.45,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "010-cyclic-dag-rejection",
+      "title": "Cyclic DAG Dependency Rejection & Rollback",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 754.16,
+        "tokensTotal": 0,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "cycleDetected": true
+        }
+      },
+      "rawDurationMs": 754.16,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 754.16,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "011-concurrent-lease-collision",
+      "title": "Concurrent Task Lease Collision & EAGAIN Backoff",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 7517.58,
+        "tokensTotal": 808,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "workerA_status": "CLAIMED",
+          "workerB_status": "REJECTED"
+        }
+      },
+      "rawDurationMs": 7517.58,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 7517.58,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "012-signal-interrupted-merge",
+      "title": "Signal-Interrupted Merge Fail-Closed Rollback (SIGTERM)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 4763.09,
+        "tokensTotal": 605,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {}
+      },
+      "rawDurationMs": 4763.09,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 4763.09,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "013-waymark-multi-compaction",
+      "title": "Multi-Compaction Trajectory Stability (3 Cycles)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 5340.19,
+        "tokensTotal": 28,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "compactionCycles": 3
+        }
+      },
+      "rawDurationMs": 5340.19,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 5340.19,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "014-disk-full-recovery",
+      "title": "SQLite Transaction Rollback Recovery",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 105.58,
+        "tokensTotal": 0,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "transactionRolledBack": true,
+          "dbHealthy": true
+        }
+      },
+      "rawDurationMs": 105.58,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 105.58,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "015-docker-isolated-overhead",
+      "title": "Docker Containerization Overhead Comparative Baseline",
+      "tier": "docker",
+      "passed": true,
+      "metrics": {
+        "durationMs": 1596.07,
+        "tokensTotal": 0,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "dockerAvailable": true,
+          "singleContainerMs": 1595.8139000000083
+        }
+      },
+      "rawDurationMs": 1596.07,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 1596.07,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "016-naive-mutex-contention",
+      "title": "Naive Mutex Contention & Starvation Comparative Baseline",
+      "tier": "naive_mutex",
+      "passed": true,
+      "metrics": {
+        "durationMs": 71.63,
+        "tokensTotal": 0,
+        "conflictsDetected": 1,
+        "conflictsResolved": 0,
+        "mainBranchValid": false,
+        "accuracyPercent": 100,
+        "details": {
+          "lockContentionCount": 6
+        }
+      },
+      "rawDurationMs": 71.63,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 71.63,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "017-parallel-50-workers",
+      "title": "High-Concurrency Multi-Agent Swarm (50 Workers)",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 42894.68,
+        "tokensTotal": 9584,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "worktreesProvisioned": 15,
+          "worktreesIsolated": true
+        },
+        "worktreesProvisioned": 15,
+        "worktreesIsolated": true
+      },
+      "rawDurationMs": 42894.68,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 42894.68,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "018-cross-repo-workspace-dag",
+      "title": "Monorepo Workspace Cross-Package DAG Resolution",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 156.72,
+        "tokensTotal": 0,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "dagNodesTotal": 4
+        }
+      },
+      "rawDurationMs": 156.72,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 156.72,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "019-n-way-merge-conflicts",
+      "title": "N-Way Concurrent Merge Conflict & Worktree Quarantine",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 14683.73,
+        "tokensTotal": 4719,
+        "conflictsDetected": 3,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "contendingWorkers": 5,
+          "sharedFilesModified": [
+            "src/auth.ts"
+          ],
+          "cleanMerges": 2,
+          "conflictsQuarantined": 3,
+          "mainBranchIntact": true
+        }
+      },
+      "rawDurationMs": 14683.73,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 14683.73,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "020-concurrent-main-drift",
+      "title": "Concurrent Upstream Main Drift & Auto-Rebase Synchronization",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 5786.26,
+        "tokensTotal": 627,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {}
+      },
+      "rawDurationMs": 5786.26,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 5786.26,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "021-mcp-protocol-resilience",
+      "title": "Tier 1.5 Subprocess MCP Protocol Boundary & Tool Calling Resilience",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 931.41,
+        "tokensTotal": 1075,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "protocolResilience": true
+        }
+      },
+      "rawDurationMs": 931.41,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 931.41,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "022-watchdog-heartbeat-stale-reclaim",
+      "title": "Watchdog Stale Heartbeat Detection & Fault-Tolerant Task Recovery",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 2898.85,
+        "tokensTotal": null,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "heartbeatExpired": true
+        }
+      },
+      "rawDurationMs": 2898.85,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 2898.85,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "scenarioId": "023-symbol-discovery",
+      "title": "Real Structured AST Symbol Discovery",
+      "tier": "subprocess_mcp",
+      "passed": true,
+      "metrics": {
+        "durationMs": 7136.67,
+        "tokensTotal": 1014,
+        "conflictsDetected": 0,
+        "conflictsResolved": 0,
+        "mainBranchValid": true,
+        "accuracyPercent": 100,
+        "details": {
+          "symbolsVerified": true,
+          "noWrite": true,
+          "worktreeIsolated": true,
+          "mainClean": true,
+          "discoveredLanguage": "typescript",
+          "symbolCount": 5
+        }
+      },
+      "rawDurationMs": 7136.67,
+      "trialHistory": [
+        {
+          "trialIndex": 1,
+          "durationMs": 7136.67,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] — 2026-09-06
+
+### Added
+- Added live scenario `023-symbol-discovery`, exercising the real Arbiter CLI, active lease, claimed worktree, and Waymark WASM parser.
+- Locked `BASELINE_v2.3.0.json` from a passing 23-scenario run and added its generated README results row.
+
 ## [2.2.1] — 2026-09-06
 
 ### Fixed

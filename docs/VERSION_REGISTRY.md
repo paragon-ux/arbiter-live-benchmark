@@ -15,7 +15,7 @@ npm run check:version
 # or: node scripts/bump-version.mjs --check
 
 # Bump suite version atomically across all living targets
-node scripts/bump-version.mjs 2.2.1
+node scripts/bump-version.mjs 2.3.0
 ```
 
 ---
@@ -46,3 +46,4 @@ Files in versioned subdirectories represent sealed, point-in-time historical aud
 - **`BASELINE_v2.1.0.json`**: Sealed reference baseline JSON for v2.1.0 regressions.
 - **`BASELINE_v2.2.0.json`**: Sealed reference baseline JSON for v2.2.0 release comparisons.
 - **`BASELINE_v2.2.1.json`**: Sealed reference baseline JSON for v2.2.1 release comparisons.
+- **`BASELINE_v2.3.0.json`**: Sealed reference baseline JSON for v2.3.0 release comparisons.

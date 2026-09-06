@@ -1,16 +1,16 @@
 # Arbiter Live Benchmark: Multi-Agent Orchestration & Continuity Testbed
 
-[![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
-> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. The v2.2.1 baseline reports **69% continuity savings**: scenario `001` used 3,083 total tokens, while scenario `002` used 782 total tokens including a 194-token Waymark resume packet. The suite also measures isolation fidelity, DAG scheduling, dead-worker lease recovery, and fail-closed chaos recovery across 22 live scenarios. (Reproduce locally via `npm run verify:release` or `npm run benchmark`).
+> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. The v2.3.0 baseline reports **69% continuity savings**: scenario `001` used 3,079 total tokens, while scenario `002` used 781 total tokens including a 196-token Waymark resume packet. The suite also measures isolation fidelity, DAG scheduling, dead-worker lease recovery, structured AST discovery, and fail-closed chaos recovery across 23 live scenarios. (Reproduce locally via `npm run verify:release` or `npm run benchmark`).
 
 ---
 
 ## Table of Contents
 
-- [Empirical Results Summary (v2.2.1)](#empirical-results-summary-v221)
+- [Empirical Results Summary (v2.3.0)](#empirical-results-summary-v230)
   - [Live Frontier Agent Verification (Tier 2: Google Gemini via Antigravity CLI)](#live-frontier-agent-verification-tier-2-google-gemini-via-antigravity-cli)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md)
@@ -22,35 +22,36 @@
 
 ---
 
-## Empirical Results Summary (v2.2.1)
+## Empirical Results Summary (v2.3.0)
 
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
 <!-- BEGIN:RESULTS_TABLE -->
 | Scenario | Mode | Median Latency | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Cold Exploration Baseline | ~4,915ms | 3,083 | 0 | **100%** | ✅ PASS |
-| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~5,387ms | **782** | 0 | **100%** | ✅ PASS |
-| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1,297ms | N/A | 1 (0 resolved) | 50% | ✅ PASS |
-| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~10,946ms | 1,759 | 0 | **100%** | ✅ PASS |
-| **`005-dag-dependencies`** | 12-Task Topological DAG | ~4,273ms | 600 | 0 | **100%** | ✅ PASS |
-| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~8,297ms | 1,198 | 1 (1 resolved) | **100%** | ✅ PASS |
-| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~5,761ms | N/A | 0 | **100%** | ✅ PASS |
-| **`008-agent-semantic-correctness`** | Typecheck & Test Pass Rate | ~9,565ms | 785 | 0 | **100%** | ✅ PASS |
-| **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~38,699ms | 6,406 | 0 | **100%** | ✅ PASS |
-| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~915ms | N/A | 0 | **100%** | ✅ PASS |
-| **`011-concurrent-lease-collision`** | Atomic CAS Lease & Unique Index | ~7,710ms | 807 | 0 | **100%** | ✅ PASS |
-| **`012-signal-interrupted-merge`** | Active Merge Rollback | ~7,128ms | 613 | 0 | **100%** | ✅ PASS |
-| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~6,996ms | 28 | 0 | **100%** | ✅ PASS |
-| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | ~102ms | N/A | 0 | **100%** | ✅ PASS |
-| **`015-docker-isolated-overhead`** | Host Process/Docker Overhead | ~2,765ms | N/A | 0 | **100%** | ✅ PASS |
-| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~59.3ms | N/A | 1 (0 resolved) | **100%** | ✅ PASS |
-| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~55,190ms | 9,500 | 0 | **100%** | ✅ PASS |
-| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~137ms | N/A | 0 | **100%** | ✅ PASS |
-| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~19,072ms | 4,722 | 3 (0 resolved) | **100%** | ✅ PASS |
-| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~6,582ms | 634 | 0 | **100%** | ✅ PASS |
-| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,168ms | 946 | 0 | **100%** | ✅ PASS |
-| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~3,168ms | N/A | 0 | **100%** | ✅ PASS |
+| **`001-single-agent-cold`** | Cold Exploration Baseline | ~5,833ms | 3,079 | 0 | **100%** | ✅ PASS |
+| **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~4,758ms | **781** | 0 | **100%** | ✅ PASS |
+| **`003-parallel-no-isolation`** | Chaos Baseline (Shared Tree) | ~1,076ms | N/A | 1 (0 resolved) | 50% | ✅ PASS |
+| **`004-parallel-arbiter`** | Arbiter Worktree Swarm (3 W) | ~9,329ms | 1,747 | 0 | **100%** | ✅ PASS |
+| **`005-dag-dependencies`** | 12-Task Topological DAG | ~3,941ms | 605 | 0 | **100%** | ✅ PASS |
+| **`006-conflict-quarantine`** | Fail-Closed Merge Quarantine | ~6,771ms | 1,190 | 1 (1 resolved) | **100%** | ✅ PASS |
+| **`007-watchdog-dead-worker`** | Zero-Daemon Process Reclaim | ~2,896ms | N/A | 0 | **100%** | ✅ PASS |
+| **`008-agent-semantic-correctness`** | Typecheck & Test Pass Rate | ~7,076ms | 784 | 0 | **100%** | ✅ PASS |
+| **`009-parallel-10-workers`** | 10-Worker Atomic CAS Swarm | ~28,374ms | 6,432 | 0 | **100%** | ✅ PASS |
+| **`010-cyclic-dag-rejection`** | Directed Cycle Detection | ~754ms | N/A | 0 | **100%** | ✅ PASS |
+| **`011-concurrent-lease-collision`** | Atomic CAS Lease & Unique Index | ~7,518ms | 808 | 0 | **100%** | ✅ PASS |
+| **`012-signal-interrupted-merge`** | Active Merge Rollback | ~4,763ms | 605 | 0 | **100%** | ✅ PASS |
+| **`013-waymark-multi-compaction`** | 3-Cycle Trajectory Stability | ~5,340ms | 28 | 0 | **100%** | ✅ PASS |
+| **`014-disk-full-recovery`** | SQLite Transaction Rollback Recovery | ~106ms | N/A | 0 | **100%** | ✅ PASS |
+| **`015-docker-isolated-overhead`** | Host Process/Docker Overhead | ~1,596ms | N/A | 0 | **100%** | ✅ PASS |
+| **`016-naive-mutex-contention`** | Naive Mutex Contention | ~71.6ms | N/A | 1 (0 resolved) | **100%** | ✅ PASS |
+| **`017-parallel-50-workers`** | High-Concurrency Scale Swarm | ~42,895ms | 9,584 | 0 | **100%** | ✅ PASS |
+| **`018-cross-repo-workspace-dag`** | Monorepo Workspace Cross-DAG | ~157ms | N/A | 0 | **100%** | ✅ PASS |
+| **`019-n-way-merge-conflicts`** | N-Way Conflict & Quarantine | ~14,684ms | 4,719 | 3 (0 resolved) | **100%** | ✅ PASS |
+| **`020-concurrent-main-drift`** | Upstream Drift Auto-Rebase | ~5,786ms | 627 | 0 | **100%** | ✅ PASS |
+| **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~931ms | 1,075 | 0 | **100%** | ✅ PASS |
+| **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~2,899ms | N/A | 0 | **100%** | ✅ PASS |
+| **`023-symbol-discovery`** | Structured AST Symbol Discovery | ~7,137ms | 1,014 | 0 | **100%** | ✅ PASS |
 <!-- END:RESULTS_TABLE -->
 
 **Total Suite Duration:** ~105s (live Git worktrees & on-disk SQLite WAL) | **Memory Heap:** ~6.6 MB | **Tokenizer:** Compiled @dqbd/tiktoken cl100k_base BPE
@@ -83,7 +84,7 @@ This repository is part of an integrated, local-first multi-agent execution suit
 | Repository | Role & Responsibility | Core Invariant |
 | :--- | :--- | :--- |
 | **[`AGENTS.md Compact Reload`](https://github.com/paragon-ux/codex-agents-compact-reload)** | Static project governance & compaction survival. | Re-injects verified `AGENTS.md` and SHA-256 hash on context compaction. |
-| **[`Waymark`](https://github.com/paragon-ux/waymark)** | In-flight continuity ledger & AST discovery MCP. | The v2.2.1 baseline measured a 194-token resume packet inside a 782-token Waymark scenario. |
+| **[`Waymark`](https://github.com/paragon-ux/waymark)** | In-flight continuity ledger & AST discovery MCP. | The v2.3.0 baseline measured a 196-token resume packet inside a 781-token Waymark scenario. |
 | **[`Arbiter`](https://github.com/paragon-ux/Arbiter)** | Multi-agent DAG orchestrator & worktree supervisor. | Enforces `1 Task : 1 Worktree : 1 Trajectory`; fail-closed merge quarantine. |
 | **[`arbiter-live-benchmark`](https://github.com/paragon-ux/arbiter-live-benchmark)** | Empirical validation & regression benchmark testbed. | Quantifies isolation, token efficiency, DAG scheduling, and rollback safety. |
 
@@ -185,14 +186,14 @@ cd ../arbiter-live-benchmark
 npm install
 npm run verify
 
-# Full release gate: verification, fresh 22-scenario benchmark, and baseline comparison
+# Full release gate: verification, fresh 23-scenario benchmark, and baseline comparison
 npm run verify:release
 ```
 
 ### Running Benchmarks via CLI
 
 ```bash
-# Run all 22 scenarios in deterministic mode (default)
+# Run all 23 scenarios in deterministic mode (default)
 npm run benchmark
 
 # Run with 10-trial statistical aggregation (Median, P95, StdDev)
