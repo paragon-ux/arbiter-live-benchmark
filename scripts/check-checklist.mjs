@@ -9,7 +9,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { compareVersions } from './baseline-path.mjs';
+import { compareVersions, HISTORICAL_VERSIONS } from './baseline-path.mjs';
 
 const rootDir = resolve(import.meta.dirname, '..');
 const packageData = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf8'));
@@ -18,7 +18,7 @@ const isVersionAtMost = (candidate, current) => {
   const comparison = compareVersions(candidate, current);
   return comparison !== null && comparison <= 0;
 };
-const historicalVersions = ['2.3.0', '2.2.1', '2.2.0', '2.1.3', '2.1.0'].filter((version) => isVersionAtMost(version, currentVersion));
+const historicalVersions = HISTORICAL_VERSIONS.filter((version) => isVersionAtMost(version, currentVersion));
 const versionedCandidates = historicalVersions.flatMap((version) => [
   resolve(rootDir, 'docs', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),

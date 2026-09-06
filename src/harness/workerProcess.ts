@@ -206,14 +206,54 @@ function resolveTestTarget(worktreePath: string, testFile: string): string {
   return path.relative(worktreePath, target).replace(/\\/g, '/');
 }
 
+function ensureContainedParent(worktreePath: string, targetFile: string): string {
+  const root = canonicalPath(worktreePath);
+  const lexicalRoot = path.resolve(worktreePath);
+  const relativeParent = path.relative(lexicalRoot, path.dirname(targetFile));
+  if (relativeParent === '..' || relativeParent.startsWith(`..${path.sep}`) || path.isAbsolute(relativeParent)) {
+    throw new Error('file operation path resolves outside the assigned worktree');
+  }
+
+  let current = root;
+  for (const segment of relativeParent.split(path.sep).filter(Boolean)) {
+    const candidate = path.join(current, segment);
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(candidate);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      try {
+        fs.mkdirSync(candidate);
+      } catch (mkdirError: unknown) {
+        if ((mkdirError as NodeJS.ErrnoException).code !== 'EEXIST') throw mkdirError;
+        stat = fs.lstatSync(candidate);
+      }
+      stat ??= fs.lstatSync(candidate);
+    }
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error('file operation path contains an unsafe parent directory');
+    }
+    current = canonicalPath(candidate);
+    if (!isWithin(root, current, true)) {
+      throw new Error('file operation path resolves outside the assigned worktree');
+    }
+  }
+  return current;
+}
+
 function openContainedFile(worktreePath: string, targetFile: string, flags: number): number {
   const root = canonicalPath(worktreePath);
-  const parent = canonicalPath(path.dirname(targetFile));
-  if (!isWithin(root, parent, true)) throw new Error('file operation path resolves outside the assigned worktree');
-  const noFollow = fs.constants.O_NOFOLLOW ?? 0;
-  const descriptor = fs.openSync(targetFile, flags | noFollow, 0o600);
+  const parent = ensureContainedParent(worktreePath, targetFile);
+  const safeTarget = path.join(parent, path.basename(targetFile));
+  const existed = fs.existsSync(safeTarget);
+  if (existed && fs.lstatSync(safeTarget).isSymbolicLink()) {
+    throw new Error('file operation path must not be a symbolic link');
+  }
+  const noFollow = fs.constants.O_NOFOLLOW;
+  const exclusiveCreate = !existed && (flags & fs.constants.O_CREAT) !== 0 ? fs.constants.O_EXCL : 0;
+  const descriptor = fs.openSync(safeTarget, flags | (noFollow ?? 0) | exclusiveCreate, 0o600);
   try {
-    const actual = canonicalPath(targetFile);
+    const actual = canonicalPath(safeTarget);
     if (!isWithin(root, actual) || !fs.fstatSync(descriptor).isFile()) {
       throw new Error('file operation path resolves outside the assigned worktree');
     }
@@ -399,16 +439,11 @@ function snapshotTree(root: string): string[] {
 
 function discoveryStateSnapshot(repoPath: string, worktreePath: string, relativePath: string): string {
   const databaseDir = path.join(repoPath, '.arbiter');
-  const databaseFiles = fs.existsSync(databaseDir)
-    ? fs.readdirSync(databaseDir).filter((name) => name.startsWith('arbiter.db')).sort().map((name) => {
-      const filePath = path.join(databaseDir, name);
-      return `${name}:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
-    })
-    : [];
+  const databaseFiles = snapshotTree(databaseDir);
   const sourcePath = resolveContainedPath(worktreePath, relativePath, 'discovery path');
   if (!fs.statSync(sourcePath).isFile()) throw new Error('discovery path must reference a regular file');
   const sourceHash = crypto.createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
-  const gitStatus = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+  const gitStatus = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--ignored=all'], {
     cwd: worktreePath,
     windowsHide: true,
     encoding: 'utf8',
@@ -416,6 +451,7 @@ function discoveryStateSnapshot(repoPath: string, worktreePath: string, relative
   return JSON.stringify({
     sourceHash,
     gitStatus,
+    worktreeFiles: snapshotTree(worktreePath),
     databaseFiles,
     waymark: snapshotTree(path.join(worktreePath, '.waymark')),
   });
@@ -447,7 +483,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     let completionAttempts = 0;
     let failureAttempts = 0;
     let claimSent = false;
-    let failureTransitionRequestId = 3;
+    const completionRequestId = 3;
+    let nextRequestId = completionRequestId + 1;
+    let failureTransitionRequestId: number | null = null;
     let failureTransitionReason = '';
     let failureTransitionActive = false;
     let settled = false;
@@ -466,7 +504,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       failureTransitionActive = true;
       failureTransitionReason = reason;
       failureAttempts += 1;
-      failureTransitionRequestId = failureAttempts === 1 ? 3 : 3 + failureAttempts;
+      failureTransitionRequestId = nextRequestId++;
       send({
         jsonrpc: '2.0',
         id: failureTransitionRequestId,
@@ -558,7 +596,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
       if (config.runTypecheck) {
         const result = runTsc(ledger, worktreePath, ['--noEmit']);
-        if (!result.ok) typeErrors++;
+        if (!result.ok) {
+          typeErrors++;
+          throw new Error(`Typecheck failed: ${result.stderr}`);
+        }
       }
 
       if (config.runTests) {
@@ -566,6 +607,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         typeErrors += testMetrics.typeErrors;
         unitTestsPassed = testMetrics.unitTestsPassed;
         unitTestsTotal = testMetrics.unitTestsTotal;
+        if (testMetrics.typeErrors > 0 || testMetrics.unitTestsTotal < 1 || testMetrics.unitTestsPassed !== testMetrics.unitTestsTotal) {
+          throw new Error(`Tests failed: ${testMetrics.unitTestsPassed}/${testMetrics.unitTestsTotal} passed with ${testMetrics.typeErrors} type error(s)`);
+        }
       }
 
       if (config.shouldFail) {
@@ -577,7 +621,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       completionAttempts = 1;
       send({
         jsonrpc: '2.0',
-        id: 3,
+        id: completionRequestId,
         method: 'tools/call',
         params: {
           name: 'arbiter_complete_task',
@@ -664,6 +708,36 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         } catch (err: unknown) {
           fail(err instanceof Error ? err.message : String(err));
         }
+        return;
+      }
+
+      if (resp.id === completionRequestId) {
+        if (failureTransitionActive) return;
+        const result = resp.result as { content?: Array<{ text?: string }> } | undefined;
+        const text = result?.content?.[0]?.text;
+        if (!text) {
+          fail('MCP task completion returned no result payload');
+          return;
+        }
+        let resultData: { ok?: boolean };
+        try {
+          resultData = JSON.parse(text) as { ok?: boolean };
+        } catch (err: unknown) {
+          fail(`Invalid MCP task completion payload: ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
+        if (resultData.ok !== true || !worktreePath) {
+          fail('MCP task completion was not acknowledged');
+          return;
+        }
+        const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
+        const sha = revision.ok ? revision.stdout.trim() : '';
+        if (!sha) {
+          finish(output({ success: false, error: revision.stderr || 'Unable to read completed task revision' }));
+          return;
+        }
+        commitSha = sha;
+        finish(output({ success: true, commitSha }));
         return;
       }
 
@@ -940,7 +1014,12 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   if (config.runTypecheck) {
     const result = runTsc(ledger, worktreePath, ['--noEmit']);
-    if (!result.ok) typeErrors++;
+    if (!result.ok) {
+      typeErrors++;
+      const reason = `Typecheck failed: ${result.stderr}`;
+      const transition = await transitionFailure(reason);
+      return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+    }
   }
 
   if (config.runTests) {
@@ -949,6 +1028,11 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       typeErrors += testMetrics.typeErrors;
       unitTestsPassed = testMetrics.unitTestsPassed;
       unitTestsTotal = testMetrics.unitTestsTotal;
+      if (testMetrics.typeErrors > 0 || testMetrics.unitTestsTotal < 1 || testMetrics.unitTestsPassed !== testMetrics.unitTestsTotal) {
+        const reason = `Tests failed: ${testMetrics.unitTestsPassed}/${testMetrics.unitTestsTotal} passed with ${testMetrics.typeErrors} type error(s)`;
+        const transition = await transitionFailure(reason);
+        return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+      }
     } catch (err: unknown) {
       const reason = err instanceof Error ? err.message : String(err);
       const transition = await transitionFailure(reason);
@@ -986,10 +1070,14 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       ], attempt > 0);
       const compData = compRes.ok ? parseJson(compRes.stdout) : null;
       if (compRes.ok && compData?.ok === true) {
-        completionSuccess = true;
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
-        if (revision.ok) commitSha = revision.stdout.trim();
-        else completionError = revision.stderr || 'Unable to read completed task revision';
+        const sha = revision.ok ? revision.stdout.trim() : '';
+        if (sha) {
+          commitSha = sha;
+          completionSuccess = true;
+        } else {
+          completionError = revision.stderr || 'Unable to read completed task revision';
+        }
         break;
       }
       completionError = compRes.stderr || 'CLI completion was not acknowledged';
@@ -1002,9 +1090,14 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
         ? statusData.task as Record<string, unknown>
         : undefined;
       if (statusTask?.status === 'COMPLETED') {
-        completionSuccess = true;
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
-        if (revision.ok) commitSha = revision.stdout.trim();
+        const sha = revision.ok ? revision.stdout.trim() : '';
+        if (sha) {
+          completionSuccess = true;
+          commitSha = sha;
+        } else {
+          completionError = revision.stderr || 'Unable to read completed task revision';
+        }
       }
     }
   }
