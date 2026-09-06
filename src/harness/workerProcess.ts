@@ -4,9 +4,11 @@ import process from 'node:process';
 import crypto from 'node:crypto';
 import { execFileSync as nodeExecFileSync, spawn, spawnSync, type ExecFileSyncOptions } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { StringDecoder } from 'node:string_decoder';
 import { countTokens } from './tokens.js';
 
 const __dirname = import.meta.dirname;
+const workerProcessScript = path.resolve(__dirname, 'workerProcess.js');
 const require = createRequire(import.meta.url);
 const rootDir = path.resolve(__dirname, '../../..');
 const rootNodeModules = path.resolve(rootDir, 'node_modules');
@@ -16,6 +18,8 @@ const MCP_TIMEOUT_MS = 90_000;
 const FAILURE_RECONCILE_TIMEOUT_MS = 5_000;
 const MAX_CAPTURE_BYTES = 256 * 1024;
 const MAX_MCP_LINE_BYTES = 1024 * 1024;
+const OUTPUT_TRUNCATION_MARKER = '\n[output truncated]';
+const HEARTBEAT_INTERVAL_MS = 15_000;
 const waymarkCliScript = [
   process.env.WAYMARK_CLI_PATH || '',
   path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
@@ -30,8 +34,8 @@ const tscBin = (() => {
   }
 })();
 
-function killProcessTree(pid: number | undefined): void {
-  if (!pid) return;
+function killProcessTree(pid: number | undefined): boolean {
+  if (!pid) return true;
   if (process.platform === 'win32') {
     try {
       nodeExecFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
@@ -39,13 +43,17 @@ function killProcessTree(pid: number | undefined): void {
         stdio: 'ignore',
         timeout: 1_000,
       });
-    } catch {}
-    return;
+      return true;
+    } catch { return false; }
   }
   try {
-    process.kill(-pid, 'SIGTERM');
+    process.kill(-pid, 'SIGKILL');
+    return true;
   } catch {
-    try { process.kill(pid, 'SIGTERM'); } catch {}
+    try {
+      process.kill(pid, 'SIGKILL');
+      return true;
+    } catch { return false; }
   }
 }
 
@@ -82,6 +90,15 @@ function textValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (Buffer.isBuffer(value)) return value.toString('utf8');
   return value === undefined || value === null ? '' : String(value);
+}
+
+function limitUtf8(value: string, maxBytes: number, marker = ''): string {
+  const bytes = Buffer.from(value, 'utf8');
+  if (bytes.length <= maxBytes) return value;
+  const markerBytes = Buffer.byteLength(marker, 'utf8');
+  const decoder = new StringDecoder('utf8');
+  const body = decoder.write(bytes.subarray(0, Math.max(0, maxBytes - markerBytes)));
+  return `${body}${marker}`;
 }
 
 interface CommandResult {
@@ -123,7 +140,7 @@ function executeCommandAsync(file: string, args: readonly string[], cwd: string,
     const child = spawn(file, args, {
       cwd,
       env,
-      detached: process.platform !== 'win32',
+      detached: process.platform !== 'win32' && process.argv[2] !== '--heartbeat',
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
@@ -131,14 +148,16 @@ function executeCommandAsync(file: string, args: readonly string[], cwd: string,
     let stderr = '';
     let outputError = '';
     let settled = false;
+    let cleanupAcknowledged = true;
     let timer: NodeJS.Timeout | undefined;
     const append = (current: string, chunk: Buffer): string => {
       const next = current + chunk.toString('utf8');
       if (Buffer.byteLength(next, 'utf8') > MAX_CAPTURE_BYTES) {
         outputError = `Command output exceeded ${MAX_CAPTURE_BYTES} bytes`;
+        cleanupAcknowledged = killProcessTree(child.pid);
         try { child.kill('SIGTERM'); } catch {}
       }
-      return next.slice(0, MAX_CAPTURE_BYTES);
+      return limitUtf8(next, MAX_CAPTURE_BYTES, OUTPUT_TRUNCATION_MARKER);
     };
     const finish = (result: CommandResult): void => {
       if (settled) return;
@@ -150,17 +169,66 @@ function executeCommandAsync(file: string, args: readonly string[], cwd: string,
     child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
     child.on('error', (error) => finish({ ok: false, stdout, stderr: stderr || error.message }));
     child.on('close', (code, signal) => finish({
-      ok: !outputError && code === 0,
+      ok: !outputError && cleanupAcknowledged && code === 0,
       stdout,
-      stderr: outputError || stderr || (code === 0 ? '' : `Command exited with code ${code ?? 'null'}${signal ? ` (${signal})` : ''}`),
+      stderr: outputError || (!cleanupAcknowledged ? 'Process tree cleanup was not acknowledged' : '') || stderr || (code === 0 ? '' : `Command exited with code ${code ?? 'null'}${signal ? ` (${signal})` : ''}`),
     }));
     timer = setTimeout(() => {
       if (settled) return;
       outputError = `Command timed out after ${timeoutMs}ms`;
-      killProcessTree(child.pid);
+      cleanupAcknowledged = killProcessTree(child.pid);
       try { child.kill('SIGTERM'); } catch {}
     }, Math.max(1, timeoutMs));
   });
+}
+
+interface LeaseHeartbeatGuard {
+  failure(): string | undefined;
+  stop(): void;
+}
+
+function startLeaseHeartbeat(repoPath: string, taskId: string, workerId: string, leaseEpoch: number): LeaseHeartbeatGuard {
+  let failureMessage: string | undefined;
+  const heartbeatProcess = spawn(process.execPath, [
+    workerProcessScript,
+    '--heartbeat',
+    repoPath,
+    taskId,
+    workerId,
+    String(leaseEpoch),
+  ], {
+    cwd: repoPath,
+    detached: process.platform !== 'win32',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    windowsHide: true,
+  });
+  heartbeatProcess.stdout?.on('data', (chunk: Buffer) => {
+    failureMessage ||= limitUtf8(chunk.toString('utf8'), MAX_CAPTURE_BYTES, OUTPUT_TRUNCATION_MARKER);
+  });
+  heartbeatProcess.on('error', (error) => {
+    failureMessage ||= `Lease heartbeat process failed: ${error.message}`;
+  });
+  heartbeatProcess.on('close', (code) => {
+    if (code !== 0 && !failureMessage) failureMessage = `Lease heartbeat process exited with code ${code ?? 'null'}`;
+  });
+  return {
+    failure: () => failureMessage,
+    stop: () => {
+      if (!heartbeatProcess.killed) killProcessTree(heartbeatProcess.pid);
+    },
+  };
+}
+
+function runWithLeaseHeartbeat<T>(repoPath: string, taskId: string, workerId: string, leaseEpoch: number, operation: () => T): T {
+  const guard = startLeaseHeartbeat(repoPath, taskId, workerId, leaseEpoch);
+  try {
+    const result = operation();
+    const failure = guard.failure();
+    if (failure) throw new Error(failure);
+    return result;
+  } finally {
+    guard.stop();
+  }
 }
 
 class TokenLedger {
@@ -175,9 +243,7 @@ class TokenLedger {
 
   add(text: string, kind: 'request' | 'response' | 'content' | 'error', retry = false, stream: 'stdout' | 'stderr' = 'stdout'): void {
     if (!text) return;
-    const bounded = Buffer.byteLength(text, 'utf8') > MAX_CAPTURE_BYTES
-      ? `${text.slice(0, MAX_CAPTURE_BYTES)}\n[output truncated]`
-      : text;
+    const bounded = limitUtf8(text, MAX_CAPTURE_BYTES, OUTPUT_TRUNCATION_MARKER);
     const tokens = countTokens(bounded);
     this.total += tokens;
     if (kind === 'request') this.request += tokens;
@@ -186,8 +252,8 @@ class TokenLedger {
     if (kind === 'error') this.errors += tokens;
     if (retry) this.retries += tokens;
     if (kind === 'response' || kind === 'error') {
-      if (stream === 'stderr') this.stderr = `${this.stderr}${bounded}`.slice(0, MAX_CAPTURE_BYTES);
-      else this.stdout = `${this.stdout}${bounded}`.slice(0, MAX_CAPTURE_BYTES);
+      if (stream === 'stderr') this.stderr = limitUtf8(`${this.stderr}${bounded}`, MAX_CAPTURE_BYTES);
+      else this.stdout = limitUtf8(`${this.stdout}${bounded}`, MAX_CAPTURE_BYTES);
     }
   }
 
@@ -456,6 +522,8 @@ function openContainedFilePosix(worktreePath: string, targetFile: string, flags:
 
 function openContainedFile(worktreePath: string, targetFile: string, flags: number): number {
   if (process.platform !== 'win32') return openContainedFilePosix(worktreePath, targetFile, flags);
+  const writeFlags = fs.constants.O_WRONLY | fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_APPEND;
+  if ((flags & writeFlags) !== 0) throw new Error('Windows writes require atomic contained-file replacement');
   const root = canonicalPath(worktreePath);
   const parent = ensureContainedParent(worktreePath, targetFile);
   if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
@@ -515,6 +583,58 @@ function closeContainedFile(descriptor: number): void {
   }
 }
 
+function writeContainedFileWindows(worktreePath: string, targetFile: string, content: string, append: boolean): void {
+  const root = canonicalPath(worktreePath);
+  const parent = ensureContainedParent(worktreePath, targetFile);
+  if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
+  const safeTarget = path.join(parent, path.basename(targetFile));
+  const parentDescriptor = fs.openSync(parent, fs.constants.O_RDONLY);
+  const parentIdentity = fs.fstatSync(parentDescriptor);
+  let tempPath: string | undefined;
+  let tempDescriptor: number | undefined;
+  const verifyParent = () => {
+    const current = fs.statSync(parent);
+    if (current.dev !== parentIdentity.dev || current.ino !== parentIdentity.ino) throw new Error('file operation parent changed during write');
+  };
+  try {
+    let existing = '';
+    try {
+      const targetStat = fs.lstatSync(safeTarget);
+      if (targetStat.isSymbolicLink() || !targetStat.isFile()) throw new Error('file operation path must reference a regular file');
+      if (append) existing = fs.readFileSync(safeTarget, 'utf8');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+    verifyParent();
+    tempPath = path.join(parent, `.${path.basename(targetFile)}.${crypto.randomUUID()}.worker-tmp`);
+    tempDescriptor = fs.openSync(tempPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+    fs.writeFileSync(tempDescriptor, append ? existing + content : content, 'utf8');
+    fs.fsyncSync(tempDescriptor);
+    fs.closeSync(tempDescriptor);
+    tempDescriptor = undefined;
+    verifyParent();
+    try {
+      if (fs.lstatSync(safeTarget).isSymbolicLink()) throw new Error('file operation path must not be a symbolic link');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+    fs.renameSync(tempPath, safeTarget);
+    tempPath = undefined;
+    verifyParent();
+  } finally {
+    if (tempDescriptor !== undefined) {
+      try { fs.closeSync(tempDescriptor); } catch {}
+    }
+    if (tempPath) {
+      try {
+        verifyParent();
+        fs.unlinkSync(tempPath);
+      } catch {}
+    }
+    fs.closeSync(parentDescriptor);
+  }
+}
+
 function deleteContainedFile(worktreePath: string, targetFile: string): void {
   if (process.platform !== 'win32') {
     let parent: { fd: number; descriptors: number[] };
@@ -535,6 +655,10 @@ function deleteContainedFile(worktreePath: string, targetFile: string): void {
       closeDescriptors(parent.descriptors);
     }
     return;
+  }
+
+  if (fs.constants.O_NOFOLLOW === undefined) {
+    throw new Error('secure directory-relative delete is unavailable on Windows');
   }
 
   try {
@@ -579,15 +703,20 @@ function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] 
       deleteContainedFile(worktreePath, targetFile);
     } else if (op.action === 'append' || op.append !== undefined) {
       const content = op.append || '';
+      if (process.platform === 'win32') writeContainedFileWindows(worktreePath, targetFile, content, true);
+      else {
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
       try {
         verifyWindowsParent(descriptor);
         fs.writeFileSync(descriptor, content, 'utf8');
         verifyWindowsParent(descriptor);
       } finally { closeContainedFile(descriptor); }
+      }
       ledger.add(content, 'content');
     } else {
       const content = op.content || '';
+      if (process.platform === 'win32') writeContainedFileWindows(worktreePath, targetFile, content, false);
+      else {
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC);
       try {
         verifyWindowsParent(descriptor);
@@ -595,6 +724,7 @@ function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] 
         fs.writeFileSync(descriptor, content, 'utf8');
         verifyWindowsParent(descriptor);
       } finally { closeContainedFile(descriptor); }
+      }
       ledger.add(content, 'content');
     }
   }
@@ -832,22 +962,28 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     const sendFailureTransition = (reason = failureTransitionReason || config.failError || 'Worker task failure') => {
       if (settled || !claimedTaskId) return;
       failureTransitionActive = true;
-      failureTransitionReason = reason;
+      failureTransitionReason = limitUtf8(reason, MAX_MCP_LINE_BYTES, OUTPUT_TRUNCATION_MARKER);
       failureAttempts += 1;
       failureTransitionRequestId = nextRequestId++;
-      send({
-        jsonrpc: '2.0',
-        id: failureTransitionRequestId,
-        method: 'tools/call',
-        params: {
-          name: 'arbiter_fail_task',
-          arguments: {
-            task_id: claimedTaskId,
-            worker_id: config.workerId,
-            error: failureTransitionReason,
+      try {
+        send({
+          jsonrpc: '2.0',
+          id: failureTransitionRequestId,
+          method: 'tools/call',
+          params: {
+            name: 'arbiter_fail_task',
+            arguments: {
+              task_id: claimedTaskId,
+              worker_id: config.workerId,
+              error: failureTransitionReason,
+            },
           },
-        },
-      });
+        });
+      } catch (error: unknown) {
+        failureTransitionActive = false;
+        failureTransitionRequestId = null;
+        finishFailure(`MCP failure transition request could not be sent: ${error instanceof Error ? error.message : String(error)}`);
+      }
     };
 
     const retryFailureTransition = async (message: string) => {
@@ -900,7 +1036,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       const cliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
       const deadline = Date.now() + FAILURE_RECONCILE_TIMEOUT_MS;
       const readStatus = async (): Promise<string | undefined> => {
-        const timeoutMs = Math.max(1, deadline - Date.now());
+        const remaining = deadline - Date.now();
+        if (remaining <= 1_100) return undefined;
+        const timeoutMs = remaining - 1_100;
         const status = await runCommandWithLedgerAsync(ledger, process.execPath, [cliScript, 'status', '--task', taskId], config.repoPath, timeoutMs);
         if (!status.ok) return undefined;
         try {
@@ -911,7 +1049,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       const isTerminal = (status: string | undefined): boolean => status === 'FAILED' || status === 'COMPLETED';
       if (isTerminal(await readStatus())) return true;
       for (let attempt = 0; attempt < 8 && Date.now() < deadline; attempt++) {
-        const timeoutMs = Math.max(1, deadline - Date.now());
+        const remaining = deadline - Date.now();
+        if (remaining <= 1_100) break;
+        const timeoutMs = Math.max(1, remaining - 1_100);
         const result = await runCommandWithLedgerAsync(ledger, process.execPath, [
           cliScript,
           'fail',
@@ -928,6 +1068,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         const waitMs = Math.min(80 * Math.pow(1.5, attempt), Math.max(0, deadline - Date.now()));
         if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
+      if (Date.now() >= deadline) return false;
       return isTerminal(await readStatus());
     };
     let failureFinishPromise: Promise<void> | undefined;
@@ -958,53 +1099,61 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
     const performWork = async (): Promise<void> => {
       if (!worktreePath || !claimedTaskId) throw new Error('MCP claim response did not provide a usable task');
+      const taskId = claimedTaskId;
+      const assignedWorktree = worktreePath;
       if (config.crashWithSignal) terminateForTest(config.crashWithSignal);
 
       if (config.holdLeaseMs && config.holdLeaseMs > 0) {
         await new Promise((r) => setTimeout(r, config.holdLeaseMs));
       }
-      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
+      refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
 
       if (config.discovery) {
         throw new Error('MCP worker discovery configuration is unsupported; use CLI worker mode');
       }
 
-      applyFileOperations(worktreePath, config.files, ledger);
-      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
+      runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+        applyFileOperations(assignedWorktree, config.files, ledger);
+      });
+      refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
 
       if (config.runTypecheck) {
-        const result = runTsc(ledger, worktreePath, ['--noEmit']);
+        const result = runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => runTsc(ledger, assignedWorktree, ['--noEmit']));
         if (!result.ok) {
           typeErrors++;
           throw new Error(`Typecheck failed: ${result.stderr}`);
         }
-        refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
+        refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
       }
 
       if (config.runTests) {
-        const testMetrics = runTests(ledger, worktreePath, config.testFile);
+        const testMetrics = runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => runTests(ledger, assignedWorktree, config.testFile));
         typeErrors += testMetrics.typeErrors;
         unitTestsPassed = testMetrics.unitTestsPassed;
         unitTestsTotal = testMetrics.unitTestsTotal;
         if (testMetrics.typeErrors > 0 || testMetrics.unitTestsTotal < 1 || testMetrics.unitTestsPassed !== testMetrics.unitTestsTotal) {
           throw new Error(`Tests failed: ${testMetrics.unitTestsPassed}/${testMetrics.unitTestsTotal} passed with ${testMetrics.typeErrors} type error(s)`);
         }
-        refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
+        refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
       }
 
       if (config.shouldFail) {
         try {
-          commitConfiguredChanges(ledger, worktreePath, config.files, config.commitMessage, `Failed work for ${claimedTaskId}`);
+          runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+            commitConfiguredChanges(ledger, assignedWorktree, config.files, config.commitMessage, `Failed work for ${taskId}`);
+          });
         } catch (err: unknown) {
           startFailureTransition(`Failed worker commit: ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
-        startFailureTransition(config.failError || `Failed work for ${claimedTaskId}`);
+        startFailureTransition(config.failError || `Failed work for ${taskId}`);
         return;
       }
 
-      recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
-      refreshLease(ledger, config.repoPath, claimedTaskId, config.workerId, leaseEpoch);
+      runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+        recordWaymarkHop(ledger, assignedWorktree, waymarkTrajectoryId, config.files);
+      });
+      refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
       completionAttempts = 1;
       const completionAnswer = config.commitMessage
         ? `${config.commitMessage}\n\nCompleted work by ${config.workerId} at lease epoch ${leaseEpoch}`
@@ -1162,13 +1311,13 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       if (settled) return;
       const raw = chunk.toString();
       ledger.add(raw, 'response', false, 'stdout');
-      if (Buffer.byteLength(buffer, 'utf8') + Buffer.byteLength(raw, 'utf8') > MAX_MCP_LINE_BYTES) {
-        fail(`MCP response exceeded ${MAX_MCP_LINE_BYTES} bytes`);
-        return;
-      }
       buffer += raw;
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
+      if (Buffer.byteLength(buffer, 'utf8') > MAX_MCP_LINE_BYTES || lines.some((line) => Buffer.byteLength(line, 'utf8') > MAX_MCP_LINE_BYTES)) {
+        fail(`MCP response exceeded ${MAX_MCP_LINE_BYTES} bytes`);
+        return;
+      }
 
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -1367,14 +1516,14 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       const language = typeof config.discovery.language === 'string' && config.discovery.language.trim()
         ? config.discovery.language.trim()
         : undefined;
-      const discoveryRes = execArbiter([
-        'discover-symbols',
-        '--task', taskId,
-        '--worker', config.workerId,
-        '--lease-epoch', String(leaseEpoch),
-        '--path', discoveryPath,
-        ...(language ? ['--language', language] : []),
-      ]);
+      const discoveryRes = runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => execArbiter([
+          'discover-symbols',
+          '--task', taskId,
+          '--worker', config.workerId,
+          '--lease-epoch', String(leaseEpoch),
+          '--path', discoveryPath,
+          ...(language ? ['--language', language] : []),
+        ]));
       discoveryResult = parseJson(discoveryRes.stdout) || {
         ok: false,
         code: 'ERR_DISCOVERY_RESPONSE',
@@ -1398,7 +1547,9 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   }
 
   try {
-    applyFileOperations(worktreePath, config.files, ledger);
+    runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+      applyFileOperations(worktreePath, config.files, ledger);
+    });
     refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : String(err);
@@ -1407,7 +1558,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   }
 
   if (config.runTypecheck) {
-    const result = runTsc(ledger, worktreePath, ['--noEmit']);
+    const result = runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => runTsc(ledger, worktreePath, ['--noEmit']));
     if (!result.ok) {
       typeErrors++;
       const reason = `Typecheck failed: ${result.stderr}`;
@@ -1425,7 +1576,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   if (config.runTests) {
     try {
-      const testMetrics = runTests(ledger, worktreePath, config.testFile);
+      const testMetrics = runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => runTests(ledger, worktreePath, config.testFile));
       typeErrors += testMetrics.typeErrors;
       unitTestsPassed = testMetrics.unitTestsPassed;
       unitTestsTotal = testMetrics.unitTestsTotal;
@@ -1454,7 +1605,9 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let completionError = '';
   if (config.shouldFail) {
     try {
-      commitConfiguredChanges(ledger, worktreePath, config.files, config.commitMessage, `Failed work for ${taskId}`);
+      runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+        commitConfiguredChanges(ledger, worktreePath, config.files, config.commitMessage, `Failed work for ${taskId}`);
+      });
     } catch (err: unknown) {
       completionError = err instanceof Error ? err.message : String(err);
     }
@@ -1466,7 +1619,9 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     });
   } else {
     try {
-      recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
+      runWithLeaseHeartbeat(config.repoPath, taskId, config.workerId, leaseEpoch, () => {
+        recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
+      });
       refreshLease(ledger, config.repoPath, taskId, config.workerId, leaseEpoch);
     } catch (err: unknown) {
       const reason = err instanceof Error ? err.message : String(err);
@@ -1600,11 +1755,58 @@ function parseWorkerConfig(value: unknown): WorkerTaskConfig {
   return normalized;
 }
 
+async function runLeaseHeartbeat(args: string[]): Promise<void> {
+  const [repoPath, taskId, workerId, rawLeaseEpoch] = args;
+  const leaseEpoch = Number(rawLeaseEpoch);
+  if (!repoPath || !taskId || !workerId || !Number.isInteger(leaseEpoch) || leaseEpoch < 1) {
+    process.exitCode = 1;
+    return;
+  }
+  const cliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
+  let stopped = false;
+  let inFlight = false;
+  let interval: NodeJS.Timeout | undefined;
+  let finish: (() => void) | undefined;
+  const stop = (failed?: string) => {
+    if (failed) {
+      process.stdout.write(failed);
+      process.exitCode = 1;
+    }
+    stopped = true;
+    if (interval) clearInterval(interval);
+    finish?.();
+  };
+  const beat = async () => {
+    if (stopped || inFlight) return;
+    inFlight = true;
+    const result = await executeCommandAsync(process.execPath, [
+      cliScript,
+      'heartbeat',
+      '--task', taskId,
+      '--worker', workerId,
+      '--lease-epoch', String(leaseEpoch),
+    ], repoPath, COMMAND_TIMEOUT_MS);
+    inFlight = false;
+    if (!result.ok) stop(result.stderr || 'Lease heartbeat was rejected');
+  };
+  await new Promise<void>((resolve) => {
+    finish = resolve;
+    process.once('SIGTERM', () => stop());
+    process.once('SIGINT', () => stop());
+    void beat();
+    interval = setInterval(() => { void beat(); }, HEARTBEAT_INTERVAL_MS);
+  });
+}
+
 async function main(): Promise<void> {
   const payloadArg = process.argv[2] || process.env.ARBITER_WORKER_PAYLOAD;
   if (!payloadArg) {
     console.error('WorkerProcess error: No configuration payload provided.');
     process.exitCode = 1;
+    return;
+  }
+  if (payloadArg === '--heartbeat') {
+    await runLeaseHeartbeat(process.argv.slice(3));
     return;
   }
 

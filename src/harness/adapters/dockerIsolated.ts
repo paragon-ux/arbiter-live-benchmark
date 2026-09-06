@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import crypto from 'node:crypto';
 import { BaseScenario, ScenarioResult } from '../types.js';
 import { countTokens } from '../tokens.js';
 import { createTempGitRepo } from '../gitHelper.js';
@@ -107,16 +106,21 @@ export class DockerIsolatedAdapter {
     let worktreeEquivMs = 2.0;
     try {
       const { repoPath: tempRepo, cleanup: cleanupTemp } = createTempGitRepo();
+      let tempRoot: string | undefined;
       let tempWt: string | undefined;
       try {
+        tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wt-bench-'));
         const wtStart = performance.now();
-        tempWt = path.join(os.tmpdir(), `wt-bench-${crypto.randomUUID()}`);
+        tempWt = path.join(tempRoot, 'worktree');
         execFileSync('git', ['worktree', 'add', '--detach', '--force', tempWt, 'main'], { cwd: tempRepo, windowsHide: true });
         worktreeEquivMs = Math.max(0.1, performance.now() - wtStart);
       } finally {
         if (tempWt) {
           try { execFileSync('git', ['worktree', 'remove', tempWt, '--force'], { cwd: tempRepo, windowsHide: true }); } catch {}
           try { fs.rmSync(tempWt, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
+        }
+        if (tempRoot) {
+          try { fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
         }
         cleanupTemp();
       }
