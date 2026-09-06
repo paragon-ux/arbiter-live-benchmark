@@ -25,28 +25,28 @@ const baselineFile = basename(baselinePath);
 const readmePath = resolve(rootDir, 'README.md');
 
 const SCENARIO_META = {
-  '001-single-agent-cold': { mode: 'Cold Exploration Baseline', latencyBudget: '2,500ms' },
-  '002-single-agent-waymark': { mode: 'Waymark In-Flight Continuity', latencyBudget: '1,000ms' },
-  '003-parallel-no-isolation': { mode: 'Chaos Baseline (Shared Tree)', latencyBudget: '200.0ms' },
-  '004-parallel-arbiter': { mode: 'Arbiter Worktree Swarm (3 W)', latencyBudget: '8,000ms' },
-  '005-dag-dependencies': { mode: '12-Task Topological DAG', latencyBudget: '600.0ms' },
-  '006-conflict-quarantine': { mode: 'Fail-Closed Merge Quarantine', latencyBudget: '4,000ms' },
-  '007-watchdog-dead-worker': { mode: 'Zero-Daemon Process Reclaim', latencyBudget: '500.0ms' },
-  '008-agent-semantic-correctness': { mode: 'Typecheck & Test Pass Rate', latencyBudget: '2,000ms' },
-  '009-parallel-10-workers': { mode: '10-Worker Atomic CAS Swarm', latencyBudget: '25,000ms' },
-  '010-cyclic-dag-rejection': { mode: 'Directed Cycle Detection', latencyBudget: '250.0ms' },
-  '011-concurrent-lease-collision': { mode: 'Atomic CAS Lease & Unique Index', latencyBudget: '300.0ms' },
-  '012-signal-interrupted-merge': { mode: 'Active Merge Rollback', latencyBudget: '2,500ms' },
-  '013-waymark-multi-compaction': { mode: '3-Cycle Trajectory Stability', latencyBudget: '50.0ms' },
-  '014-disk-full-recovery': { mode: 'SQLite Transaction Rollback Recovery', latencyBudget: '250.0ms' },
-  '015-docker-isolated-overhead': { mode: 'Host Process/Docker Overhead', latencyBudget: '1,200ms' },
-  '016-naive-mutex-contention': { mode: 'Naive Mutex Contention', latencyBudget: '150.0ms' },
-  '017-parallel-50-workers': { mode: 'High-Concurrency Scale Swarm', latencyBudget: '120,000ms' },
-  '018-cross-repo-workspace-dag': { mode: 'Monorepo Workspace Cross-DAG', latencyBudget: '500.0ms' },
-  '019-n-way-merge-conflicts': { mode: 'N-Way Conflict & Quarantine', latencyBudget: '12,000ms' },
-  '020-concurrent-main-drift': { mode: 'Upstream Drift Auto-Rebase', latencyBudget: '3,000ms' },
-  '021-mcp-protocol-resilience': { mode: 'Subprocess MCP Protocol Boundary', latencyBudget: '2,500ms' },
-  '022-watchdog-heartbeat-stale-reclaim': { mode: 'Watchdog Stale Heartbeat Recovery', latencyBudget: '250.0ms' }
+  '001-single-agent-cold': { mode: 'Cold Exploration Baseline' },
+  '002-single-agent-waymark': { mode: 'Waymark In-Flight Continuity' },
+  '003-parallel-no-isolation': { mode: 'Chaos Baseline (Shared Tree)' },
+  '004-parallel-arbiter': { mode: 'Arbiter Worktree Swarm (3 W)' },
+  '005-dag-dependencies': { mode: '12-Task Topological DAG' },
+  '006-conflict-quarantine': { mode: 'Fail-Closed Merge Quarantine' },
+  '007-watchdog-dead-worker': { mode: 'Zero-Daemon Process Reclaim' },
+  '008-agent-semantic-correctness': { mode: 'Typecheck & Test Pass Rate' },
+  '009-parallel-10-workers': { mode: '10-Worker Atomic CAS Swarm' },
+  '010-cyclic-dag-rejection': { mode: 'Directed Cycle Detection' },
+  '011-concurrent-lease-collision': { mode: 'Atomic CAS Lease & Unique Index' },
+  '012-signal-interrupted-merge': { mode: 'Active Merge Rollback' },
+  '013-waymark-multi-compaction': { mode: '3-Cycle Trajectory Stability' },
+  '014-disk-full-recovery': { mode: 'SQLite Transaction Rollback Recovery' },
+  '015-docker-isolated-overhead': { mode: 'Host Process/Docker Overhead' },
+  '016-naive-mutex-contention': { mode: 'Naive Mutex Contention' },
+  '017-parallel-50-workers': { mode: 'High-Concurrency Scale Swarm' },
+  '018-cross-repo-workspace-dag': { mode: 'Monorepo Workspace Cross-DAG' },
+  '019-n-way-merge-conflicts': { mode: 'N-Way Conflict & Quarantine' },
+  '020-concurrent-main-drift': { mode: 'Upstream Drift Auto-Rebase' },
+  '021-mcp-protocol-resilience': { mode: 'Subprocess MCP Protocol Boundary' },
+  '022-watchdog-heartbeat-stale-reclaim': { mode: 'Watchdog Stale Heartbeat Recovery' }
 };
 
 export function formatLatency(durationMs) {
@@ -82,12 +82,12 @@ export function formatAccuracy(accuracyPercent) {
 export function generateTable(baseline) {
   const results = baseline.results || baseline.scenarios || [];
   const lines = [
-    '| Scenario | Mode | Median Latency | Latency Budget | Tokens | Conflicts | Accuracy | Status |',
+    '| Scenario | Mode | Median Latency | Tokens | Conflicts | Accuracy | Status |',
     '| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |'
   ];
 
   for (const item of results) {
-    const meta = SCENARIO_META[item.scenarioId] || { mode: item.title, latencyBudget: 'N/A' };
+    const meta = SCENARIO_META[item.scenarioId] || { mode: item.title };
     const m = item.metrics || {};
     const lat = formatLatency(m.durationMs ?? 0);
     const tok = formatTokens(m.tokensTotal, item.scenarioId);
@@ -96,7 +96,7 @@ export function generateTable(baseline) {
     const status = item.passed ? '✅ PASS' : '❌ FAIL';
 
     const idDisplay = `**\`${item.scenarioId}\`**`;
-    lines.push(`| ${idDisplay} | ${meta.mode} | ${lat} | ${meta.latencyBudget} | ${tok} | ${conf} | ${acc} | ${status} |`);
+    lines.push(`| ${idDisplay} | ${meta.mode} | ${lat} | ${tok} | ${conf} | ${acc} | ${status} |`);
   }
 
   return lines.join('\n');

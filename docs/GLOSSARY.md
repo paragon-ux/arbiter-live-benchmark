@@ -1,6 +1,5 @@
 # Glossary
 
-- **SLA:** Service Level Agreement. This benchmark uses versioned latency budgets for release gating; they are not production service guarantees.
 - **Baseline:** A versioned reference result used by the regression comparison gate.
 - **BPE:** Byte-Pair Encoding, the tokenization method used for compiled `cl100k_base` counts.
 - **MCP:** Model Context Protocol, the JSON-RPC boundary exercised by the subprocess adapter.
