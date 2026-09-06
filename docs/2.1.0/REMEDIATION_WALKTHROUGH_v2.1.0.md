@@ -20,9 +20,9 @@ All changes were executed strictly against live code, validated sequentially, an
 ### Phase 2: Core Architecture Safety & Fencing
 | Sequence | Description | Verification Evidence | Status |
 | :--- | :--- | :--- | :--- |
-| **`[SEQ-04]`** | Split-Brain Defense via Monotonically Increasing Lease Epochs | SQLite schema updated with `MIGRATION_V3` (`lease_epoch INTEGER NOT NULL DEFAULT 1`). Added [`test/lease-epoch.test.ts`](../Arbiter/test/lease-epoch.test.ts). Confirms zombie worker heartbeat and completion throws `STALE_EPOCH_REVOKED`. | **PASS** |
-| **`[SEQ-05]`** | Dedicated Merge Sandbox Worktree Isolation | `MergeQueue.mergeTask()` now performs merges in `.arbiter/merge-sandbox`. Added [`test/merge-sandbox.test.ts`](../Arbiter/test/merge-sandbox.test.ts). Confirmed dirty working tree in root checkout is never clobbered. | **PASS** |
-| **`[SEQ-06]`** | Automated Conflict Reconciliation Task Spawning | On git merge conflict in sandbox, task transitions to `CONFLICT_QUARANTINE` and automatically spawns a `reconcile/<taskId>` DAG child task. Added [`test/reconciliation-task.test.ts`](../Arbiter/test/reconciliation-task.test.ts). | **PASS** |
+| **`[SEQ-04]`** | Split-Brain Defense via Monotonically Increasing Lease Epochs | SQLite schema updated with `MIGRATION_V3` (`lease_epoch INTEGER NOT NULL DEFAULT 1`). Added [`test/lease-epoch.test.ts`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/test/lease-epoch.test.ts). Confirms zombie worker heartbeat and completion throws `STALE_EPOCH_REVOKED`. | **PASS** |
+| **`[SEQ-05]`** | Dedicated Merge Sandbox Worktree Isolation | `MergeQueue.mergeTask()` now performs merges in `.arbiter/merge-sandbox`. Added [`test/merge-sandbox.test.ts`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/test/merge-sandbox.test.ts). Confirmed dirty working tree in root checkout is never clobbered. | **PASS** |
+| **`[SEQ-06]`** | Automated Conflict Reconciliation Task Spawning | On git merge conflict in sandbox, task transitions to `CONFLICT_QUARANTINE` and automatically spawns a `reconcile/<taskId>` DAG child task. Added [`test/reconciliation-task.test.ts`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/test/reconciliation-task.test.ts). | **PASS** |
 | **`[SEQ-07]`** | Node Test Runner Suite Migration | Restructured all 11 test files to use `describe()` and `it()` blocks with isolated setup/teardown. Full suite executes 28 tests cleanly. | **PASS** |
 
 ### Phase 3: Benchmark Testbed & Packaging Correctness
@@ -37,14 +37,14 @@ All changes were executed strictly against live code, validated sequentially, an
 | Sequence | Description | Verification Evidence | Status |
 | :--- | :--- | :--- | :--- |
 | **`[SEQ-12]`** | Canonical H1–H16 Hypothesis Correlation Matrix | Verified parity across README and scenarios via `node scripts/check-doc-consistency.mjs --hypotheses`. Output: `HYPOTHESIS_MATRIX_PARITY_VERIFIED`. | **PASS** |
-| **`[SEQ-13]`** | Automated Markdown Results Table Generator | Created [`scripts/generate-readme-table.mjs`](scripts/generate-readme-table.mjs). Verified zero drift against `BASELINE_v2.0.0.json` via `--check`. | **PASS** |
-| **`[SEQ-14]`** | Quantitative Claims Registry & Drift Detector | Created [`Arbiter/CLAIMS.md`](../Arbiter/CLAIMS.md) and [`arbiter-live-benchmark/CLAIMS.md`](CLAIMS.md). Automated checker `scripts/claims-check.mjs` verifies claim bounds. | **PASS** |
-| **`[SEQ-15]`** | External Specification & Planned Feature Transparency | Updated `README.md` and created [`Arbiter/FEATURE_STATUS.md`](../Arbiter/FEATURE_STATUS.md) explicitly demarcating Tree-sitter WASM (Planned), Capn Hook (Complementary), and Waymark CLI (Shipped). | **PASS** |
+| **`[SEQ-13]`** | Automated Markdown Results Table Generator | Created [`scripts/generate-readme-table.mjs`](../../scripts/generate-readme-table.mjs). Verified zero drift against `BASELINE_v2.0.0.json` via `--check`. | **PASS** |
+| **`[SEQ-14]`** | Quantitative Claims Registry & Drift Detector | Created [`Arbiter/CLAIMS.md`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/CLAIMS.md) and [`arbiter-live-benchmark/CLAIMS.md`](../../CLAIMS.md). Automated checker `scripts/claims-check.mjs` verifies claim bounds. | **PASS** |
+| **`[SEQ-15]`** | External Specification & Planned Feature Transparency | Updated `README.md` and created [`Arbiter/FEATURE_STATUS.md`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/FEATURE_STATUS.md) explicitly demarcating Tree-sitter WASM (Planned), Capn Hook (Complementary), and Waymark CLI (Shipped). | **PASS** |
 
 ### Phase 5: Anti-Regression CI Gates
 | Sequence | Description | Verification Evidence | Status |
 | :--- | :--- | :--- | :--- |
-| **`[SEQ-16]`** | Cross-Document Scenario Consistency Linter | Created [`scripts/check-doc-consistency.mjs`](scripts/check-doc-consistency.mjs). Verified 22 scenarios across 5 files: 0 mismatches. | **PASS** |
+| **`[SEQ-16]`** | Cross-Document Scenario Consistency Linter | Created [`scripts/check-doc-consistency.mjs`](../../scripts/check-doc-consistency.mjs). Verified 22 scenarios across 5 files: 0 mismatches. | **PASS** |
 | **`[SEQ-17]`** | Claims & Anti-Mock Hygiene Linter | Created `scripts/claims-hygiene.mjs` in both repositories. Flags unannotated mock words in documentation: 0 violations found. | **PASS** |
 | **`[SEQ-18]`** | Remediation Checklist Audit Script | Created `scripts/check-checklist.mjs` in both repositories. Verifies 20 of 20 checked items against live files. | **PASS** |
 | **`[SEQ-19]`** | Pull Request Gatekeeper Templates | Created `.github/PULL_REQUEST_TEMPLATE.md` in both repositories enforcing zero dependencies, test pass, table drift checks, and doc consistency. | **PASS** |
@@ -119,11 +119,11 @@ All checked items verified against live repository state (20 checked items audit
 
 Following the full remediation, a `/ponytail-review` audit identified 29 lines of unnecessary complexity, duplication, and boilerplate. All approved simplifications were applied and tested:
 
-1. **[`Arbiter/src/merge/mergeQueue.ts`](../Arbiter/src/merge/mergeQueue.ts)**: Deleted redundant `fs.mkdirSync` prior to `git worktree add`; forwarded `this.git()` directly to `this.gitIn(this.repoRoot, args)` to eliminate duplicate `execFileSync` options block.
-2. **[`Arbiter/src/dag/taskService.ts`](../Arbiter/src/dag/taskService.ts)**: Consolidated identical lease and epoch validation checks into `private assertActiveLease()`.
-3. **[`Arbiter/scripts/build-native.mjs`](../Arbiter/scripts/build-native.mjs)**: Replaced manual candidate for-loop with `candidates.find(fs.existsSync) ?? null`.
-4. **[`arbiter-live-benchmark/scripts/check-doc-consistency.mjs`](scripts/check-doc-consistency.mjs)**: Eliminated redundant size check logic subsumed by explicit 1..16 key verification loop.
-5. **[`arbiter-live-benchmark/scripts/generate-readme-table.mjs`](scripts/generate-readme-table.mjs)**: Removed special-case scenario 008 padding conditional in favor of clean uniform markdown formatting.
+1. **[`Arbiter/src/merge/mergeQueue.ts`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/src/merge/mergeQueue.ts)**: Deleted redundant `fs.mkdirSync` prior to `git worktree add`; forwarded `this.git()` directly to `this.gitIn(this.repoRoot, args)` to eliminate duplicate `execFileSync` options block.
+2. **[`Arbiter/src/dag/taskService.ts`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/src/dag/taskService.ts)**: Consolidated identical lease and epoch validation checks into `private assertActiveLease()`.
+3. **[`Arbiter/scripts/build-native.mjs`](https://github.com/paragon-ux/Arbiter/blob/v2.0.0/scripts/build-native.mjs)**: Replaced manual candidate for-loop with `candidates.find(fs.existsSync) ?? null`.
+4. **[`arbiter-live-benchmark/scripts/check-doc-consistency.mjs`](../../scripts/check-doc-consistency.mjs)**: Eliminated redundant size check logic subsumed by explicit 1..16 key verification loop.
+5. **[`arbiter-live-benchmark/scripts/generate-readme-table.mjs`](../../scripts/generate-readme-table.mjs)**: Removed special-case scenario 008 padding conditional in favor of clean uniform markdown formatting.
 
 ### Post-Optimization Gate Status
 - **Arbiter**: 11 suites, 28 tests passing (`npm run verify` exited 0).
@@ -134,4 +134,3 @@ Following the full remediation, a `/ponytail-review` audit identified 29 lines o
 
 ## Conclusion & Readiness
 The repository pair is **production-ready**, architecturally resilient against split-brain concurrency and working directory corruption, and shielded by multi-layered automated consistency linters. All review findings have been resolved deterministically.
-

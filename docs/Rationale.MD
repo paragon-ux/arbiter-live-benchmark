@@ -33,7 +33,7 @@ If an agent crashes (due to timeout, out-of-memory, network disconnect, or IDE w
 | Hypothesis | Independent Variable | Controlled Conditions | Measured Metric | Expected Result |
 | :--- | :--- | :--- | :--- | :--- |
 | **H1: 1:1:1 Invariant** | Isolation Strategy (Shared Working Copy vs. Ephemeral Worktrees) | 3+ concurrent agents editing related modules | Working copy cleanliness, worktree stomping | 100% isolation; zero workspace stomping; dedicated branch per agent |
-| **H2: Waymark Continuity** | Continuity Mechanism (Cold Re-read vs. Waymark Trajectory) | Identical compaction trigger, same target codebase | Tokens consumed to resume, exploration hops | $\ge 75\%$ token reduction with Waymark (<216 tokens) |
+| **H2: Waymark Continuity** | Continuity Mechanism (Cold Re-read vs. Waymark Trajectory) | Identical compaction trigger, same target codebase | Tokens consumed to resume, exploration hops | 69% reported continuity savings; 194-token resume packet within a 782-token Waymark scenario |
 | **H3: Sub-5ms Orchestration** | Dispatcher Architecture (Linear vs. Kahn Topological Sort) | 12-task dependency graph with critical path | Scheduler latency even at 50 workers | $<5\text{ms}$ dispatch latency |
 | **H4: Fail-Closed Quarantine** | Merge Protocol (Direct Merge vs. Sequential Quarantine) | Intentionally conflicting edits across 2+ tasks | Integrity of `main`, rollback execution | `main` remains 100% pristine; conflicted worktree quarantined |
 | **H5: Zero-Daemon Dead Worker Recovery** | Lease Reclaim (Passive timeout vs. Active OS Signal `kill(pid,0)`) | Killed agent process with active lease | Dead PID detection, lease reclamation | Lease reclaimed; task reset to `READY` |
@@ -118,7 +118,7 @@ Scientific evaluation requires **deterministic repeatability** for continuous in
 ## 6. Summary of Architectural Findings
 
 The empirical findings from Arbiter Benchmark confirm:
-1. **Token Conservation**: Waymark trajectories preserve AST context in <216 tokens, saving **>75%** of tokens compared to cold re-reads.
+1. **Token Conservation**: The v2.2.1 baseline recorded a 194-token Waymark resume packet within a 782-token scenario and reported 69% continuity savings. The percentage is computed by the harness against its measured cold target context; the resume packet is not the full scenario total.
 2. **Deterministic Isolation**: Ephemeral Git worktrees prevent 100% of concurrent file collisions without the resource overhead of Docker or VMs.
 3. **Sub-Millisecond Coordination**: Native SQLite in-memory and WAL-mode scheduling executes DAG dependency resolution and watchdog lease reclamation in **<5ms**.
 4. **Resilience Under Chaos**: Atomic transactions and fail-closed rollback maintain pristine working copy status even during mid-merge signal aborts, disk exhaustion, and cyclic dependency injection.

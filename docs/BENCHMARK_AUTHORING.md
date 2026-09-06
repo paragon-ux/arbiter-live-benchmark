@@ -8,8 +8,8 @@ Comprehensive guide for authoring, validating, and executing benchmark scenarios
 
 | Scenario ID | Title | Tier | Category | Focus / Failure Mode |
 | :--- | :--- | :--- | :--- | :--- |
-| **`001-single-agent-cold`** | Single Agent Cold Exploration (Baseline) | Tier 1 / 1.5 / 2 | Core Continuity | Cold exploration baseline after context compaction (~7,120 tokens). |
-| **`002-single-agent-waymark`** | Single Agent Waymark In-Flight Continuity | Tier 1 / 1.5 / 2 | Core Continuity | In-flight continuity resume (<216 tokens, >75% token reduction). |
+| **`001-single-agent-cold`** | Single Agent Cold Exploration (Baseline) | Tier 1 / 1.5 / 2 | Core Continuity | v2.2.1 baseline cold scenario: 3,083 total tokens. |
+| **`002-single-agent-waymark`** | Single Agent Waymark In-Flight Continuity | Tier 1 / 1.5 / 2 | Core Continuity | v2.2.1 baseline: 194-token resume packet inside 782 total tokens; 69% reported continuity savings. |
 | **`003-parallel-no-isolation`** | Parallel Multi-Agent Chaos (No Isolation Baseline) | Tier 1 / 1.5 / 2 | Chaos / Isolation | Uncoordinated concurrent agents stomping shared working directory. |
 | **`004-parallel-arbiter`** | Parallel Multi-Agent Arbiter Worktree Swarm | Tier 1 / 1.5 / 2 | Workspace Isolation | 3 concurrent agents on dedicated ephemeral worktrees with sequential merge. |
 | **`005-dag-dependencies`** | DAG Task Scheduling & Dependency Unblocking | Tier 1 / 1.5 / 2 | Orchestration | 12-task dependency graph resolved via Kahn topological sort. |
@@ -96,7 +96,7 @@ The benchmark executes across four defined tiers:
 | Hypothesis | Claim Tested | Validating Scenarios | Primary Invariant |
 | :--- | :--- | :--- | :--- |
 | **H1** | 1:1:1 Invariant (1 worktree per agent per task) | `004`, `009`, `017`, `018`, `019` | Zero workspace stomping, dedicated branch |
-| **H2** | Waymark Continuity (>75% token reduction) | `001`, `002`, `013` | In-flight state restore in <250 tokens |
+| **H2** | Waymark Continuity (69% reported continuity savings) | `001`, `002`, `013` | In-flight state restore in a 194-token resume packet within a 782-token scenario |
 | **H3** | Sub-5ms Orchestration Overhead | `005`, `009`, `011`, `017` | Scheduler latency <5.0ms even at 50 workers |
 | **H4** | Fail-Closed Conflict Quarantine | `006`, `012`, `019` | Git merge abort, untouched main branch |
 | **H5** | Zero-Daemon Dead Worker Lease Reclamation | `007` | `process.kill(pid, 0)` dead PID detection |
@@ -111,4 +111,3 @@ The benchmark executes across four defined tiers:
 | **H14** | Worktree Isolation vs Naive File Mutexes | `003`, `016` | Mutex causes starvation/deadlock; worktrees 0 |
 | **H15** | Monorepo Diamond Dependency DAG Resolution | `018` | Cross-package topological ordering |
 | **H16** | Upstream Main Drift & 3-Way Synchronization | `020` | Concurrent rebase preserving upstream work |
-

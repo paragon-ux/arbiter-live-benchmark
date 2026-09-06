@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
-> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. Validates **>75% token reduction** via Waymark in-flight continuity (<216 tokens vs. ~7,120 cold re-read), **100% isolation fidelity** with zero dirty state on `main`, sub-millisecond DAG scheduling, **<5ms** zero-daemon dead-worker lease recovery, and fail-closed chaos recovery across 22 live scenarios. (Reproduce locally via `npm run verify` or `npm run benchmark`).
+> **Empirical Multi-Agent Benchmark:** Scientifically validates multi-agent workspace orchestration across isolated Git worktrees. The v2.2.1 baseline reports **69% continuity savings**: scenario `001` used 3,083 total tokens, while scenario `002` used 782 total tokens including a 194-token Waymark resume packet. The suite also measures isolation fidelity, DAG scheduling, dead-worker lease recovery, and fail-closed chaos recovery across 22 live scenarios. (Reproduce locally via `npm run verify:release` or `npm run benchmark`).
 
 ---
 
@@ -82,7 +82,7 @@ This repository is part of an integrated, local-first multi-agent execution suit
 | Repository | Role & Responsibility | Core Invariant |
 | :--- | :--- | :--- |
 | **[`AGENTS.md Compact Reload`](https://github.com/paragon-ux/codex-agents-compact-reload)** | Static project governance & compaction survival. | Re-injects verified `AGENTS.md` and SHA-256 hash on context compaction. |
-| **[`Waymark`](https://github.com/paragon-ux/waymark)** | In-flight continuity ledger & AST discovery MCP. | Preserves verified code hops (`.waymark/`) across compactions (<216 tokens). |
+| **[`Waymark`](https://github.com/paragon-ux/waymark)** | In-flight continuity ledger & AST discovery MCP. | The v2.2.1 baseline measured a 194-token resume packet inside a 782-token Waymark scenario. |
 | **[`Arbiter`](https://github.com/paragon-ux/Arbiter)** | Multi-agent DAG orchestrator & worktree supervisor. | Enforces `1 Task : 1 Worktree : 1 Trajectory`; fail-closed merge quarantine. |
 | **[`arbiter-live-benchmark`](https://github.com/paragon-ux/arbiter-live-benchmark)** | Empirical validation & regression benchmark testbed. | Quantifies isolation, token efficiency, DAG scheduling, and rollback safety. |
 

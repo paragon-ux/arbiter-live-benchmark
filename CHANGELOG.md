@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] — 2026-09-06
 
-- Version bump to 2.2.1.
+### Fixed
+- Reconciled continuity documentation and generated reports to the v2.2.1 baseline: 69% reported savings, 3,083 cold tokens, 782 Waymark scenario tokens, and a 194-token resume packet.
+- Corrected the benchmark test-count documentation to 41 tests across 9 Node suites in 8 test files and removed private historical file links.
 
 ## [2.2.0] — 2026-09-05
 

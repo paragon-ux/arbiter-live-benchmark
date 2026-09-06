@@ -255,10 +255,10 @@ An astute reviewer comparing repository files might notice apparent discrepancie
 1. **The Archived v1.2.0 Audit Number (244 vs. 135 tokens)**: The sealed historical document `docs/1.2.0/FINAL_VERIFICATION_AUDIT_v1.2.0.md` reported `audit.ts` (552 bytes) as 244 tokens. That figure stemmed from an early regex-based character heuristic prior to the introduction of compiled Byte-Pair Encoding in v2.1.0. When compiled `@dqbd/tiktoken` was integrated directly into `src/harness/tokens.ts`, running live BPE against `audit.ts` produced the true, reproducible measurement: **135 tokens** ($552 / 135 = 4.09\text{ chars/token}$). The obsolete v1.2.0 audit document is preserved strictly as an immutable historical record in `docs/1.2.0/`.
 2. **The 3.80 vs. 4.20 Ratio**: The standard literature rule of thumb for English code tokenization is approximately 3.8 chars/token, which was historically used as an uncalibrated default fallback parameter. Across all 15 source files in Arbiter's benchmark targets (11,137 total characters), compiled `cl100k_base` BPE yields **2,649 tokens**, producing an empirical aggregate ratio of **4.20 chars/token** ($11,137 / 2,649$).
 
-### 6.2 Mathematical Token Conservation via Waymark
-The token conservation demonstrated by Waymark (>75% reduction, e.g. 744 tokens vs. 3,045+ tokens) is a **mathematical property of the ingested context**:
+### 6.2 Measured Token Conservation via Waymark
+The v2.2.1 baseline reports **69% continuity savings**. Scenario `001` consumed 3,083 total tokens; scenario `002` consumed 782 total tokens, including a 194-token Waymark resume packet. The percentage is computed by the harness against its measured cold target context, so the resume packet is not the full Waymark scenario total and the displayed scenario totals are not the numerator and denominator of the reported percentage.
 - When an agent experiences context compaction without Waymark, it must re-read repository directory trees, file structures, and whole modules to re-anchor its position (consuming 3,000 to 14,000+ tokens).
-- With Waymark, the agent receives a compact, structured trajectory recording verified AST line spans and causal breadcrumbs (consuming <750 tokens, and <30 tokens in multi-compaction loops).
+- With Waymark, the agent receives a compact, structured trajectory recording verified AST line spans and causal breadcrumbs; the v2.2.1 baseline measured 194 tokens for the resume packet.
 
 Because a cloud LLM is billed strictly on the prompt tokens sent to its context window, **the token savings measured by Arbiter's compiled BPE tokenizer are identical to what you would be billed on Gemini, Claude, or GPT.**
 
@@ -341,7 +341,7 @@ cd ../arbiter-live-benchmark
 npm install
 npm run verify
 ```
-`npm run verify` executes the full suite of 40 unit and integration tests across 9 test suites, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker.
+`npm run verify` executes the full suite of 41 unit and integration tests across 9 Node test suites in 8 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 22-scenario benchmark and versioned-baseline comparison.
 
 ### Step 2: Run All 22 Scenarios in Live Subprocess Mode
 ```bash

@@ -2,6 +2,13 @@ import { BenchmarkSummary } from './types.js';
 
 export function formatMarkdownReport(summary: BenchmarkSummary): string {
   const isMultiTrial = summary.trials && summary.trials > 1;
+  const coldTokens = summary.results.find(r => r.scenarioId === '001-single-agent-cold')?.metrics.tokensTotal;
+  const waymarkMetrics = summary.results.find(r => r.scenarioId === '002-single-agent-waymark')?.metrics;
+  const continuityFinding = typeof coldTokens === 'number'
+    && typeof waymarkMetrics?.tokensTotal === 'number'
+    && typeof waymarkMetrics.waymarkResumeTokens === 'number'
+    ? `1. **In-Flight Continuity**: Waymark used a ${waymarkMetrics.waymarkResumeTokens.toLocaleString()}-token resume packet inside a ${waymarkMetrics.tokensTotal.toLocaleString()}-token scenario; the cold scenario used ${coldTokens.toLocaleString()} total tokens, and the harness reported ${summary.averageSavingsPercent}% continuity savings.`
+    : '1. **In-Flight Continuity**: Waymark preserves verified code spans across context compactions; the full benchmark reports continuity savings only when both continuity scenarios are present.';
 
   const lines: string[] = [
     '# Arbiter Multi-Agent Benchmark Report',
@@ -48,7 +55,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
 
   lines.push('');
   lines.push('### Key Architectural Findings:');
-  lines.push('1. **In-Flight Continuity**: Waymark preserves exact code spans across context compactions (<216 resume tokens), reducing token spend by **75%+** vs. cold re-reads.');
+  lines.push(continuityFinding);
   lines.push('2. **Worktree Isolation**: Ephemeral worktrees eliminate file collision and polluted main branches compared to un-isolated multi-agent free-for-alls.');
   lines.push('3. **DAG Scheduling**: Resolves complex diamond and critical path dependency trees in sub-millisecond Kahn topological sort.');
   lines.push('4. **Fail-Closed Conflict Quarantine**: Merges cleanly or immediately executes `git merge --abort`, keeping `main` pristine and staging worktrees for reconciliation.');
