@@ -14,6 +14,7 @@
   - [Live Frontier Agent Verification (Tier 2: Google Gemini via Antigravity CLI)](#live-frontier-agent-verification-tier-2-google-gemini-via-antigravity-cli)
 - [Cross-Repository Ecosystem](#cross-repository-ecosystem)
 - [Scientific Methodology & Independent Reviewer FAQ](docs/METHODOLOGY_AND_REVIEWER_FAQ.md)
+- [Glossary](docs/GLOSSARY.md)
 - [Empirical Token Calibration (Compiled BPE)](#empirical-token-calibration-compiled-bpe)
 - [Three-Tier Execution Architecture](#three-tier-execution-architecture)
 - [Quick Start & CLI Reference](#quick-start--cli-reference)
@@ -26,7 +27,7 @@
 Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination, SQLite WAL transactions, and empirical token accounting:
 
 <!-- BEGIN:RESULTS_TABLE -->
-| Scenario | Mode | Median Latency | Baseline SLA | Tokens | Conflicts | Accuracy | Status |
+| Scenario | Mode | Median Latency | Latency Budget | Tokens | Conflicts | Accuracy | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`001-single-agent-cold`** | Cold Exploration Baseline | ~4,915ms | 2,500ms | 3,083 | 0 | **100%** | ✅ PASS |
 | **`002-single-agent-waymark`** | Waymark In-Flight Continuity | ~5,387ms | 1,000ms | **782** | 0 | **100%** | ✅ PASS |
@@ -51,6 +52,8 @@ Benchmarked on **Node 22 LTS** executing live Arbiter Git worktree coordination,
 | **`021-mcp-protocol-resilience`** | Subprocess MCP Protocol Boundary | ~1,168ms | 2,500ms | 946 | 0 | **100%** | ✅ PASS |
 | **`022-watchdog-heartbeat-stale-reclaim`** | Watchdog Stale Heartbeat Recovery | ~3,168ms | 250.0ms | N/A | 0 | **100%** | ✅ PASS |
 <!-- END:RESULTS_TABLE -->
+
+> **Latency budget:** the versioned maximum latency used by the release gate; it is not a production SLA.
 
 **Total Suite Duration:** ~105s (live Git worktrees & on-disk SQLite WAL) | **Memory Heap:** ~6.6 MB | **Tokenizer:** Compiled @dqbd/tiktoken cl100k_base BPE
 
