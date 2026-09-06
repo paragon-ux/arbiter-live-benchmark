@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: paragon-ux/Arbiter
-          ref: f1e6d1c
+          ref: f1e6d1cc76a4d289df0c91f6a8b559a313004f83
           path: Arbiter
 
       - name: Check out Waymark sibling dependency
