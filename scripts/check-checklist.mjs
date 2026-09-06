@@ -25,9 +25,15 @@ const versionedCandidates = historicalVersions.flatMap((version) => [
   resolve(rootDir, '..', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '..', 'docs', version, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
 ]);
+const currentVersionCandidates = [
+  resolve(rootDir, 'docs', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+  resolve(rootDir, currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+  resolve(rootDir, '..', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+  resolve(rootDir, '..', 'docs', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+];
 const candidates = [
   resolve(rootDir, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, 'docs', currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+  ...currentVersionCandidates,
   ...versionedCandidates,
   resolve(rootDir, 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '..', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),

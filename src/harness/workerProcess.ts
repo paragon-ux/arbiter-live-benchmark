@@ -49,14 +49,16 @@ interface CommandResult {
 
 function executeCommand(file: string, args: readonly string[], cwd: string): CommandResult {
   try {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      NODE_PATH: fs.existsSync(rootNodeModules) ? rootNodeModules : process.env.NODE_PATH,
+    };
+    if (args.includes('--test')) delete env.NODE_TEST_CONTEXT;
     const output = execFileSync(file, args, {
       cwd,
       windowsHide: true,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        NODE_PATH: fs.existsSync(rootNodeModules) ? rootNodeModules : process.env.NODE_PATH,
-      },
+      env,
     });
     return { ok: true, stdout: textValue(output), stderr: '' };
   } catch (err: unknown) {
@@ -225,13 +227,8 @@ function openContainedFile(worktreePath: string, targetFile: string, flags: numb
 function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] | undefined, ledger: TokenLedger): void {
   for (const op of files || []) {
     const targetFile = resolveContainedPath(worktreePath, op.path, 'file operation path');
-    fs.mkdirSync(path.dirname(targetFile), { recursive: true });
     if (op.action === 'delete') {
-      if (fs.existsSync(targetFile)) {
-        const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_RDONLY);
-        fs.closeSync(descriptor);
-        fs.unlinkSync(targetFile);
-      }
+      throw new Error('delete file operations are unsupported; use a validated write workflow');
     } else if (op.action === 'append' || op.append !== undefined) {
       const content = op.append || '';
       const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
@@ -251,16 +248,18 @@ function runTests(ledger: TokenLedger, worktreePath: string, testFile?: string):
   let unitTestsPassed = 0;
   let unitTestsTotal = 0;
   const compile = runTsc(ledger, worktreePath);
-  if (!compile.ok) typeErrors++;
+  if (!compile.ok) return { typeErrors: 1, unitTestsPassed: 0, unitTestsTotal: 1 };
   const normalizedTestFile = testFile ? resolveTestTarget(worktreePath, testFile) : undefined;
   const testTarget = normalizedTestFile ? ['--test', normalizedTestFile] : ['--test'];
   const testResult = runCommandWithLedger(ledger, process.execPath, testTarget, worktreePath);
   const output = testResult.stdout + testResult.stderr;
   const passMatch = output.match(/# pass (\d+)/);
   const failMatch = output.match(/# fail (\d+)/);
-  unitTestsPassed = passMatch ? parseInt(passMatch[1], 10) : (testResult.ok ? 1 : 0);
-  const failCount = failMatch ? parseInt(failMatch[1], 10) : (testResult.ok ? 0 : 1);
+  if (!passMatch || !failMatch) return { typeErrors, unitTestsPassed: 0, unitTestsTotal: 1 };
+  unitTestsPassed = parseInt(passMatch[1], 10);
+  const failCount = parseInt(failMatch[1], 10);
   unitTestsTotal = unitTestsPassed + failCount;
+  if (unitTestsTotal === 0) return { typeErrors, unitTestsPassed: 0, unitTestsTotal: 1 };
   return { typeErrors, unitTestsPassed, unitTestsTotal };
 }
 
@@ -570,11 +569,6 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       }
 
       if (config.shouldFail) {
-        const commitMessage = config.commitMessage || `Failed work for ${claimedTaskId}`;
-        const addResult = runCommandWithLedger(ledger, 'git', ['add', '.'], worktreePath);
-        if (!addResult.ok) throw new Error(`git add failed: ${addResult.stderr}`);
-        const commitResult = runCommandWithLedger(ledger, 'git', ['commit', '--allow-empty', '-m', commitMessage], worktreePath);
-        if (!commitResult.ok) throw new Error(`git commit failed: ${commitResult.stderr}`);
         sendFailureTransition();
         return;
       }
@@ -802,7 +796,9 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
         const resolvedWorktree = resolveAssignedWorktreePath(config.repoPath, candidateTaskId, candidateWorktree);
         const rawLeaseEpoch = parsed?.leaseEpoch ?? parsed?.lease_epoch;
         const parsedLeaseEpoch = Number(rawLeaseEpoch);
-        if (!Number.isInteger(parsedLeaseEpoch)) throw new Error('Arbiter claim returned no valid lease epoch');
+        if (!Number.isFinite(parsedLeaseEpoch) || !Number.isInteger(parsedLeaseEpoch) || parsedLeaseEpoch < 1) {
+          throw new Error('Arbiter claim returned no valid lease epoch');
+        }
         claimData = parsed || {};
         taskId = candidateTaskId;
         worktreePath = resolvedWorktree;
@@ -965,14 +961,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let commitSha: string | undefined;
   let completionError = '';
   if (config.shouldFail) {
-    const commitMsg = config.commitMessage || `Failed work for ${taskId}`;
-    const addResult = runCommandWithLedger(ledger, 'git', ['add', '.'], worktreePath);
-    const commitResult = addResult.ok
-      ? runCommandWithLedger(ledger, 'git', ['commit', '--allow-empty', '-m', commitMsg], worktreePath)
-      : addResult;
-    if (!addResult.ok) completionError = `git add failed: ${addResult.stderr}`;
-    else if (!commitResult.ok) completionError = `git commit failed: ${commitResult.stderr}`;
-    const transition = await transitionFailure(config.failError || completionError || 'Deliberate worker task failure');
+    const transition = await transitionFailure(config.failError || 'Deliberate worker task failure');
     if (!transition.ok) completionError = completionError || transition.error || 'CLI failure transition failed';
     return output({
       success: false,
@@ -1006,6 +995,18 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       completionError = compRes.stderr || 'CLI completion was not acknowledged';
       if (attempt < 7) await new Promise((r) => setTimeout(r, 80 * Math.pow(1.5, attempt)));
     }
+    if (!completionSuccess) {
+      const statusRes = execArbiter(['status', '--task', taskId], true);
+      const statusData = statusRes.ok ? parseJson(statusRes.stdout) : null;
+      const statusTask = statusData?.task && typeof statusData.task === 'object'
+        ? statusData.task as Record<string, unknown>
+        : undefined;
+      if (statusTask?.status === 'COMPLETED') {
+        completionSuccess = true;
+        const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);
+        if (revision.ok) commitSha = revision.stdout.trim();
+      }
+    }
   }
 
   return output({
@@ -1015,19 +1016,30 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   });
 }
 
+function parseWorkerConfig(value: unknown): WorkerTaskConfig {
+  if (!value || typeof value !== 'object') throw new Error('Worker configuration must be a JSON object');
+  const config = value as Record<string, unknown>;
+  if (typeof config.workerId !== 'string' || config.workerId.trim() === '') throw new Error('Worker configuration requires workerId');
+  if (typeof config.repoPath !== 'string' || config.repoPath.trim() === '') throw new Error('Worker configuration requires repoPath');
+  if (config.mode !== 'mcp' && config.mode !== 'cli') throw new Error('Worker configuration mode must be mcp or cli');
+  return config as unknown as WorkerTaskConfig;
+}
+
 async function main(): Promise<void> {
   const payloadArg = process.argv[2] || process.env.ARBITER_WORKER_PAYLOAD;
   if (!payloadArg) {
     console.error('WorkerProcess error: No configuration payload provided.');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  let config: WorkerTaskConfig;
+  let config: WorkerTaskConfig | undefined;
   try {
-    config = JSON.parse(payloadArg);
+    config = parseWorkerConfig(JSON.parse(payloadArg));
   } catch (err) {
     console.error('WorkerProcess error: Invalid JSON payload:', err);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const arbiterMcpScript = path.resolve(rootDir, '../Arbiter/dist/src/mcp/index.js');
@@ -1042,15 +1054,15 @@ async function main(): Promise<void> {
     }
 
     console.log(JSON.stringify(result));
-    process.exit(result.success ? 0 : 1);
+    process.exitCode = result.success ? 0 : 1;
   } catch (err) {
     console.error(JSON.stringify({
       pid: process.pid,
-      workerId: config.workerId,
+      workerId: config?.workerId || 'unknown',
       success: false,
       error: err instanceof Error ? err.message : String(err),
     }));
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 
