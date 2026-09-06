@@ -58,12 +58,16 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
         windowsHide: true,
         encoding: 'utf8',
       });
-      const root = path.resolve(repoPath).toLowerCase();
+      const canonicalPath = (candidate: string): string => {
+        const resolved = path.resolve(candidate);
+        try { return fs.realpathSync.native(resolved).toLowerCase(); } catch { return resolved.toLowerCase(); }
+      };
+      const root = canonicalPath(repoPath);
       const worktreePaths = worktreeOutput
         .split(/\r?\n/)
         .filter((line) => line.startsWith('worktree '))
         .map((line) => line.slice('worktree '.length).trim())
-        .filter((worktreePath) => path.resolve(worktreePath).toLowerCase() !== root);
+        .filter((worktreePath) => canonicalPath(worktreePath) !== root);
       for (const worktreePath of worktreePaths) {
         try {
           execFileSync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: repoPath, windowsHide: true });

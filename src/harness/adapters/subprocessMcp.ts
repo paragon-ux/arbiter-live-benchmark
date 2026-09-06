@@ -881,7 +881,8 @@ export class SubprocessMcpAdapter {
     }
   }
 
-  // 015: Real Docker isolation probe. If Docker daemon is unavailable, fail closed with error!
+  // 015: Real Docker isolation probe. Unavailable Docker is an explicit capability skip;
+  // direct Docker-tier execution remains fail-closed in DockerIsolatedAdapter.
   private async runDockerIsolatedOverhead(scenario: BaseScenario, collector: MetricsCollector): Promise<ScenarioResult> {
     let dockerAvailable = false;
     let singleContainerMs = 0;
@@ -900,8 +901,20 @@ export class SubprocessMcpAdapter {
     }
 
     if (!dockerAvailable) {
-      // Fail closed: strict zero-simulation requirement
-      throw new Error('Docker daemon unavailable on host. Fail-closed policy enforces zero in-process simulation.');
+      collector.setAccuracy(0);
+      collector.setMainValidity(false);
+      collector.setDetail('dockerAvailable', false);
+      collector.setDetail('skipReason', 'DOCKER_DAEMON_UNAVAILABLE');
+      const metrics = collector.finish();
+      return {
+        scenarioId: scenario.id,
+        title: scenario.title,
+        tier: 'docker',
+        passed: false,
+        skipped: true,
+        metrics,
+        error: 'Docker daemon unavailable on host. Scenario skipped without synthetic measurement.',
+      };
     }
 
     collector.setAccuracy(100);

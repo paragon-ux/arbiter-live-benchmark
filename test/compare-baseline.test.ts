@@ -60,4 +60,22 @@ describe('CompareBaseline Suite', () => {
     assert.strictEqual(res.ok, true);
     assert.strictEqual(res.comparisons[0].isNew, true);
   });
+
+  it('does not treat an unavailable capability as a regression', () => {
+    const baseline = {
+      results: [
+        { scenarioId: '015-docker-isolated-overhead', passed: true, metrics: { durationMs: 100.0, tokensTotal: 0, accuracyPercent: 100 } }
+      ]
+    };
+    const current = {
+      results: [
+        { scenarioId: '015-docker-isolated-overhead', passed: false, skipped: true, metrics: { durationMs: 4.0, tokensTotal: 0, accuracyPercent: 0 } }
+      ]
+    };
+
+    const res = compareBenchmarks(current, baseline, tolerances, { platform: 'win32' });
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.regressionsCount, 0);
+    assert.strictEqual(res.comparisons[0].reason, 'SKIPPED_CAPABILITY_UNAVAILABLE');
+  });
 });

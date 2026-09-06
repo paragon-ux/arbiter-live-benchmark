@@ -113,7 +113,9 @@ export class BenchmarkOrchestrator {
     }
 
     const totalDuration = performance.now() - startTime;
-    const passedCount = results.filter(r => r.passed).length;
+    const passedCount = results.filter(r => r.passed && !r.skipped).length;
+    const skippedCount = results.filter(r => r.skipped).length;
+    const failedCount = results.filter(r => !r.passed && !r.skipped).length;
     const mem = estimateMemoryUsage();
 
     let totalSavings = 0;
@@ -134,7 +136,8 @@ export class BenchmarkOrchestrator {
       trials,
       totalScenarios: scenarios.length,
       passedScenarios: passedCount,
-      failedScenarios: scenarios.length - passedCount,
+      skippedScenarios: skippedCount,
+      failedScenarios: failedCount,
       totalDurationMs: Math.round(totalDuration * 100) / 100,
       averageSavingsPercent: avgSavings,
       heapUsedMb: mem.heapUsedMb,

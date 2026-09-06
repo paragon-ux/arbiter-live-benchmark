@@ -341,7 +341,7 @@ cd ../arbiter-live-benchmark
 npm install
 npm run verify
 ```
-`npm run verify` executes the full suite of 42 unit and integration tests across 9 Node test suites in 9 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 23-scenario benchmark and versioned-baseline comparison.
+`npm run verify` executes the full suite of 43 unit and integration tests across 9 Node test suites in 9 test files, validates scenario schemas, checks doc consistency, verifies token calibration, and runs the public hygiene checker. The release gate `npm run verify:release` adds a fresh 23-scenario benchmark and versioned-baseline comparison.
 
 ### Step 2: Run All 23 Scenarios in Live Subprocess Mode
 ```bash

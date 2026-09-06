@@ -113,13 +113,15 @@ Options:
     tier: summary.tier,
     totalScenarios: summary.totalScenarios,
     passedScenarios: summary.passedScenarios,
+    skippedScenarios: summary.skippedScenarios,
     failedScenarios: summary.failedScenarios,
     totalDurationMs: summary.totalDurationMs,
     scenarios: summary.results.map(r => ({
       id: r.scenarioId,
       durationMs: r.metrics.durationMs,
       tokens: r.metrics.tokensTotal,
-      passed: r.passed
+      passed: r.passed,
+      skipped: r.skipped === true
     }))
   };
   fs.appendFileSync(path.join(resultsDir, 'historical.jsonl'), JSON.stringify(historicalEntry) + '\n');

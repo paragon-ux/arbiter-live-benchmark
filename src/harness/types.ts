@@ -242,6 +242,7 @@ export interface ScenarioResult<T = ScenarioDetails> {
   title: string;
   tier: ExecutionTier;
   passed: boolean;
+  skipped?: boolean;
   metrics: ScenarioMetrics<T>;
   rawDurationMs?: number;
   trialHistory?: { trialIndex: number; durationMs: number; passed: boolean }[];
@@ -260,6 +261,7 @@ export interface BenchmarkSummary {
   trials: number;
   totalScenarios: number;
   passedScenarios: number;
+  skippedScenarios: number;
   failedScenarios: number;
   totalDurationMs: number;
   averageSavingsPercent: number;

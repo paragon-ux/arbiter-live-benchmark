@@ -14,7 +14,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     '# Arbiter Multi-Agent Benchmark Report',
     `**Timestamp:** ${summary.timestamp} | **Platform:** ${summary.platform} | **Node:** ${summary.nodeVersion} | **Tier:** ${summary.tier.toUpperCase()} | **Trials:** ${summary.trials || 1}`,
     '',
-    `**Summary:** ${summary.passedScenarios}/${summary.totalScenarios} scenarios passed in ${summary.totalDurationMs.toFixed(2)}ms (Heap: ${summary.heapUsedMb} MB)`,
+    `**Summary:** ${summary.passedScenarios}/${summary.totalScenarios} scenarios passed${summary.skippedScenarios ? `, ${summary.skippedScenarios} skipped` : ''} in ${summary.totalDurationMs.toFixed(2)}ms (Heap: ${summary.heapUsedMb} MB)`,
     ''
   ];
 
@@ -23,7 +23,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
     for (const r of summary.results) {
-      const statusIcon = r.passed ? '✅ PASS' : '❌ FAIL';
+      const statusIcon = r.skipped ? '⏭ SKIP' : (r.passed ? '✅ PASS' : '❌ FAIL');
       const tokensStr = r.metrics.tokensTotal ? r.metrics.tokensTotal.toLocaleString() : 'N/A';
       const conflictsStr = r.metrics.conflictsDetected > 0
         ? `${r.metrics.conflictsDetected} (${r.metrics.conflictsResolved} resolved)`
@@ -42,7 +42,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
     for (const r of summary.results) {
-      const statusIcon = r.passed ? '✅ PASS' : '❌ FAIL';
+      const statusIcon = r.skipped ? '⏭ SKIP' : (r.passed ? '✅ PASS' : '❌ FAIL');
       const tokensStr = r.metrics.tokensTotal ? r.metrics.tokensTotal.toLocaleString() : 'N/A';
       const conflictsStr = r.metrics.conflictsDetected > 0
         ? `${r.metrics.conflictsDetected} (${r.metrics.conflictsResolved} resolved)`

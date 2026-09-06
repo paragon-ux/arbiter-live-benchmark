@@ -55,6 +55,7 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
         currentTokens: current.metrics?.tokensTotal ?? null,
         tokenDeltaPercent: 0,
         passed: current.passed,
+        skipped: current.skipped === true,
         isNew: true,
         regressed: false,
         reason: 'NEW_SCENARIO'
@@ -74,6 +75,25 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
     let tokenDeltaPercent = 0;
     if (baseTokens !== null && currTokens !== null && baseTokens > 0) {
       tokenDeltaPercent = ((currTokens - baseTokens) / baseTokens) * 100;
+    }
+
+    if (current.skipped === true) {
+      comparisons.push({
+        scenarioId: current.scenarioId,
+        baselineDuration: baseDuration,
+        currentDuration: currDuration,
+        latencyDeltaMs,
+        latencyDeltaPercent,
+        baselineTokens: baseTokens,
+        currentTokens: currTokens,
+        tokenDeltaPercent,
+        passed: current.passed,
+        skipped: true,
+        isNew: false,
+        regressed: false,
+        reason: 'SKIPPED_CAPABILITY_UNAVAILABLE'
+      });
+      continue;
     }
 
     // Regressions:
@@ -121,6 +141,7 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
       currentTokens: currTokens,
       tokenDeltaPercent,
       passed: current.passed,
+      skipped: false,
       isNew: false,
       regressed,
       reason: reasons.join(', ') || 'OK'
@@ -155,7 +176,7 @@ export function formatComparisonReport(result) {
     const latDelta = c.isNew ? 'NEW' : `${c.latencyDeltaPercent >= 0 ? '+' : ''}${c.latencyDeltaPercent.toFixed(1)}%`;
     const baseTok = c.baselineTokens !== null ? c.baselineTokens.toLocaleString() : 'N/A';
     const currTok = c.currentTokens !== null ? c.currentTokens.toLocaleString() : 'N/A';
-    const status = c.regressed ? `❌ ${c.reason}` : (c.isNew ? '🆕 NEW' : '✅ PASS');
+    const status = c.skipped ? '⏭ SKIPPED' : (c.regressed ? `❌ ${c.reason}` : (c.isNew ? '🆕 NEW' : '✅ PASS'));
 
     lines.push(`| **${c.scenarioId}** | ${baseLat} | ${currLat} | ${latDelta} | ${baseTok} | ${currTok} | ${status} |`);
   }
