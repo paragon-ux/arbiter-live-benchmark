@@ -33,6 +33,10 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
   const platformConfig = getPlatformConfig(tolerancesData, platform);
   const maxLatencyPercent = platformConfig.latency_percent ?? 10;
   const maxTokenPercent = tolerancesData.token_tolerance_percent ?? platformConfig.tokens_percent ?? 2;
+  const isCapabilityUnavailable = (result) => result.skipped === true && [
+    'DOCKER_PROBE_FAILED',
+    'DOCKER_DAEMON_UNAVAILABLE',
+  ].includes(result.metrics?.details?.skipReason);
 
   const baselineMap = new Map();
   for (const s of baselineData.results || []) {
@@ -43,22 +47,23 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
   let regressionsCount = 0;
 
   for (const current of currentData.results || []) {
+    const capabilitySkip = isCapabilityUnavailable(current);
     const baseline = baselineMap.get(current.scenarioId);
     if (!baseline) {
       // New scenario not present in baseline (e.g. additions in newer versions)
       comparisons.push({
         scenarioId: current.scenarioId,
         baselineDuration: null,
-        currentDuration: current.skipped === true ? null : current.metrics?.durationMs ?? 0,
-        latencyDeltaPercent: current.skipped === true ? null : 0,
+        currentDuration: capabilitySkip ? null : current.metrics?.durationMs ?? 0,
+        latencyDeltaPercent: capabilitySkip ? null : 0,
         baselineTokens: null,
-        currentTokens: current.skipped === true ? null : current.metrics?.tokensTotal ?? null,
-        tokenDeltaPercent: current.skipped === true ? null : 0,
+        currentTokens: capabilitySkip ? null : current.metrics?.tokensTotal ?? null,
+        tokenDeltaPercent: capabilitySkip ? null : 0,
         passed: current.passed,
-        skipped: current.skipped === true,
+        skipped: capabilitySkip,
         isNew: true,
-        regressed: false,
-        reason: current.skipped === true ? 'SKIPPED_CAPABILITY_UNAVAILABLE' : 'NEW_SCENARIO'
+        regressed: !capabilitySkip && !current.passed,
+        reason: capabilitySkip ? 'SKIPPED_CAPABILITY_UNAVAILABLE' : (current.passed ? 'NEW_SCENARIO' : 'FAILED')
       });
       continue;
     }
@@ -77,7 +82,7 @@ export function compareBenchmarks(currentData, baselineData, tolerancesData, opt
       tokenDeltaPercent = ((currTokens - baseTokens) / baseTokens) * 100;
     }
 
-    if (current.skipped === true) {
+    if (capabilitySkip) {
       comparisons.push({
         scenarioId: current.scenarioId,
         baselineDuration: baseDuration,

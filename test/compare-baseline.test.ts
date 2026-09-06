@@ -69,7 +69,7 @@ describe('CompareBaseline Suite', () => {
     };
     const current = {
       results: [
-        { scenarioId: '015-docker-isolated-overhead', passed: false, skipped: true, metrics: { durationMs: 4.0, tokensTotal: 0, accuracyPercent: 0 } }
+        { scenarioId: '015-docker-isolated-overhead', passed: false, skipped: true, metrics: { durationMs: 4.0, tokensTotal: 0, accuracyPercent: 0, details: { skipReason: 'DOCKER_DAEMON_UNAVAILABLE' } } }
       ]
     };
 

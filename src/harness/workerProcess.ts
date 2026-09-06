@@ -334,36 +334,60 @@ function openContainedFile(worktreePath: string, targetFile: string, flags: numb
   if (process.platform !== 'win32') return openContainedFilePosix(worktreePath, targetFile, flags);
   const root = canonicalPath(worktreePath);
   const parent = ensureContainedParent(worktreePath, targetFile);
+  if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
   const safeTarget = path.join(parent, path.basename(targetFile));
   const existed = fs.existsSync(safeTarget);
   if (existed && fs.lstatSync(safeTarget).isSymbolicLink()) {
     throw new Error('file operation path must not be a symbolic link');
   }
+  const parentDescriptor = fs.openSync(parent, fs.constants.O_RDONLY);
+  const parentIdentity = fs.fstatSync(parentDescriptor);
   const noFollow = fs.constants.O_NOFOLLOW;
   const exclusiveCreate = !existed && (flags & fs.constants.O_CREAT) !== 0 ? fs.constants.O_EXCL : 0;
-  const descriptor = fs.openSync(safeTarget, flags | (noFollow ?? 0) | exclusiveCreate, 0o600);
   try {
-    const actual = canonicalPath(safeTarget);
-    if (!isWithin(root, actual) || !fs.fstatSync(descriptor).isFile()) {
-      throw new Error('file operation path resolves outside the assigned worktree');
+    const descriptor = fs.openSync(safeTarget, flags | (noFollow ?? 0) | exclusiveCreate, 0o600);
+    try {
+      const currentParent = fs.statSync(parent);
+      if (currentParent.dev !== parentIdentity.dev || currentParent.ino !== parentIdentity.ino) {
+        throw new Error('file operation parent changed during open');
+      }
+      const actual = canonicalPath(safeTarget);
+      if (!isWithin(root, actual) || !fs.fstatSync(descriptor).isFile()) {
+        throw new Error('file operation path resolves outside the assigned worktree');
+      }
+      return descriptor;
+    } catch (err) {
+      fs.closeSync(descriptor);
+      throw err;
     }
-    return descriptor;
-  } catch (err) {
-    fs.closeSync(descriptor);
-    throw err;
+  } finally {
+    fs.closeSync(parentDescriptor);
   }
 }
 
 function deleteContainedFile(worktreePath: string, targetFile: string): void {
   if (!fs.existsSync(path.dirname(targetFile))) return;
+  const root = canonicalPath(worktreePath);
   const parent = ensureContainedParent(worktreePath, targetFile);
+  if (!isWithin(root, canonicalPath(parent), true)) throw new Error('file operation path resolves outside the assigned worktree');
   const safeTarget = path.join(parent, path.basename(targetFile));
+  const parentDescriptor = fs.openSync(parent, fs.constants.O_RDONLY);
+  const parentIdentity = fs.fstatSync(parentDescriptor);
   try {
     const stat = fs.lstatSync(safeTarget);
     if (stat.isDirectory()) throw new Error('delete file operation must reference a file');
     fs.unlinkSync(safeTarget);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+  } finally {
+    try {
+      const currentParent = fs.statSync(parent);
+      if (currentParent.dev !== parentIdentity.dev || currentParent.ino !== parentIdentity.ino) {
+        throw new Error('file operation parent changed during delete');
+      }
+    } finally {
+      fs.closeSync(parentDescriptor);
+    }
   }
 }
 
@@ -384,6 +408,16 @@ function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] 
       ledger.add(content, 'content');
     }
   }
+}
+
+function commitConfiguredChanges(ledger: TokenLedger, worktreePath: string, files: WorkerFileOperation[] | undefined, commitMessage: string | undefined, fallbackMessage: string): void {
+  const paths = [...new Set((files || []).map((file) => path.relative(worktreePath, resolveContainedPath(worktreePath, file.path, 'file operation path')).replace(/\\/g, '/')))].filter(Boolean);
+  if (paths.length > 0) {
+    const addResult = runCommandWithLedger(ledger, 'git', ['add', '--', ...paths], worktreePath);
+    if (!addResult.ok) throw new Error(`git add failed: ${addResult.stderr}`);
+  }
+  const commitResult = runCommandWithLedger(ledger, 'git', ['commit', '--allow-empty', '-m', commitMessage || fallbackMessage], worktreePath);
+  if (!commitResult.ok) throw new Error(`git commit failed: ${commitResult.stderr}`);
 }
 
 function runTests(ledger: TokenLedger, worktreePath: string, testFile?: string): { typeErrors: number; unitTestsPassed: number; unitTestsTotal: number } {
@@ -668,16 +702,54 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     };
 
     let failureTimeout: NodeJS.Timeout | undefined;
+    const reconcileFailure = (message: string): boolean => {
+      if (!claimedTaskId) return true;
+      const taskId = claimedTaskId;
+      const cliScript = path.resolve(rootDir, '../Arbiter/dist/src/cli/cli.js');
+      const readStatus = (): string | undefined => {
+        const status = runCommandWithLedger(ledger, process.execPath, [cliScript, 'status', '--task', taskId], config.repoPath);
+        if (!status.ok) return undefined;
+        try {
+          const data = JSON.parse(status.stdout) as { task?: { status?: unknown } };
+          return typeof data.task?.status === 'string' ? data.task.status : undefined;
+        } catch { return undefined; }
+      };
+      const currentStatus = readStatus();
+      if (currentStatus === 'FAILED' || currentStatus === 'COMPLETED') return true;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const result = runCommandWithLedger(ledger, process.execPath, [
+          cliScript,
+          'fail',
+          '--task', taskId,
+          '--worker', config.workerId,
+          '--error', message,
+        ], config.repoPath, attempt > 0);
+        if (result.ok) {
+          try {
+            const data = JSON.parse(result.stdout) as { ok?: unknown };
+            if (data.ok === true) return true;
+          } catch {}
+        }
+      }
+      const finalStatus = readStatus();
+      return finalStatus === 'FAILED' || finalStatus === 'COMPLETED';
+    };
     const finishFailure = (message: string) => {
-      finish(output({ error: message, stderr: ledger.stderr || message }));
+      const reconciled = reconcileFailure(message);
+      finish(output({ error: reconciled ? message : `${message}; failure transition was not acknowledged`, stderr: ledger.stderr || message }));
+    };
+    const startFailureTransition = (message: string) => {
+      sendFailureTransition(message);
+      if (!failureTimeout) {
+        failureTimeout = setTimeout(() => {
+          if (!settled) finishFailure(message);
+        }, COMMAND_TIMEOUT_MS);
+      }
     };
     const fail = (message: string) => {
       if (claimedTaskId && failureTransitionActive && !settled) return;
       if (claimedTaskId && failureAttempts === 0 && !settled) {
-        sendFailureTransition(message);
-        failureTimeout = setTimeout(() => {
-          if (!settled) finishFailure(message);
-        }, COMMAND_TIMEOUT_MS);
+        startFailureTransition(message);
         return;
       }
       finishFailure(message);
@@ -716,12 +788,21 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       }
 
       if (config.shouldFail) {
-        sendFailureTransition();
+        try {
+          commitConfiguredChanges(ledger, worktreePath, config.files, config.commitMessage, `Failed work for ${claimedTaskId}`);
+        } catch (err: unknown) {
+          startFailureTransition(`Failed worker commit: ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
+        startFailureTransition(config.failError || `Failed work for ${claimedTaskId}`);
         return;
       }
 
       recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
       completionAttempts = 1;
+      const completionAnswer = config.commitMessage
+        ? `${config.commitMessage}\n\nCompleted work by ${config.workerId} at lease epoch ${leaseEpoch}`
+        : `Completed work by ${config.workerId} at lease epoch ${leaseEpoch}`;
       send({
         jsonrpc: '2.0',
         id: completionRequestId,
@@ -731,7 +812,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           arguments: {
             task_id: claimedTaskId,
             worker_id: config.workerId,
-            answer: `Task completed cleanly by PID ${process.pid}.`,
+            answer: completionAnswer,
             lease_epoch: leaseEpoch,
           },
         },
@@ -1138,7 +1219,12 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let commitSha: string | undefined;
   let completionError = '';
   if (config.shouldFail) {
-    const transition = await transitionFailure(config.failError || 'Deliberate worker task failure');
+    try {
+      commitConfiguredChanges(ledger, worktreePath, config.files, config.commitMessage, `Failed work for ${taskId}`);
+    } catch (err: unknown) {
+      completionError = err instanceof Error ? err.message : String(err);
+    }
+    const transition = await transitionFailure(completionError || config.failError || 'Deliberate worker task failure');
     if (!transition.ok) completionError = completionError || transition.error || 'CLI failure transition failed';
     return output({
       success: false,
@@ -1152,13 +1238,16 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       const transition = await transitionFailure(reason);
       return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
     }
+    const completionAnswer = config.commitMessage
+      ? `${config.commitMessage}\n\nCompleted work by ${config.workerId} at lease epoch ${leaseEpoch}`
+      : `Completed work by ${config.workerId} at lease epoch ${leaseEpoch}`;
     for (let attempt = 0; attempt < 8; attempt++) {
       completionAttempts = attempt + 1;
       const compRes = execArbiter([
         'complete',
         '--task', taskId,
         '--worker', config.workerId,
-        '--answer', `Completed work by ${config.workerId}`,
+        '--answer', completionAnswer,
         '--lease-epoch', String(leaseEpoch),
       ], attempt > 0);
       const compData = compRes.ok ? parseJson(compRes.stdout) : null;
@@ -1179,7 +1268,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
       const statusTask = statusData?.task && typeof statusData.task === 'object'
         ? statusData.task as Record<string, unknown>
         : undefined;
-      if (statusTask?.status === 'COMPLETED') {
+      if (statusTask?.status === 'COMPLETED' && statusTask.resultAnswer === completionAnswer) {
         completionSuccess = true;
         completionError = '';
         const revision = runCommandWithLedger(ledger, 'git', ['rev-parse', 'HEAD'], worktreePath);

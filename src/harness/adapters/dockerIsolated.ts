@@ -70,6 +70,7 @@ export class DockerIsolatedAdapter {
           details: {
             coordinationStrategy: 'DOCKER_CONTAINER_PER_WORKER',
             dockerDaemonAvailable: false,
+            skipReason: 'DOCKER_PROBE_FAILED',
             error: containerError,
           }
         }

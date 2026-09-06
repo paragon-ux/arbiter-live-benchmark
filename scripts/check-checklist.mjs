@@ -16,10 +16,10 @@ const packageData = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'u
 const currentVersion = String(packageData.version);
 const candidates = [
   resolve(rootDir, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  ...versionedDocumentCandidates(rootDir, currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
   resolve(rootDir, '..', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
-  resolve(rootDir, '..', 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md')
+  resolve(rootDir, '..', 'docs', 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
+  ...versionedDocumentCandidates(rootDir, currentVersion, 'REMEDIATION_AND_ANTI_REGRESSION_CHECKLIST.md'),
 ];
 const checklistPath = candidates.find(existsSync);
 
