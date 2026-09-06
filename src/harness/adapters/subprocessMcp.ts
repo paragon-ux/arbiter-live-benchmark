@@ -1392,16 +1392,26 @@ export class SubprocessMcpAdapter {
         return Boolean(value && Number.isInteger(value.line) && Number.isInteger(value.column) && Number(value.line) >= 1 && Number(value.column) >= 0);
       };
       const expectedSymbols = new Map<string, { kind: string; start: { line: number; column: number }; end: { line: number; column: number } }>();
-      for (const value of Array.isArray(scenario.expectedSymbols) ? scenario.expectedSymbols : []) {
+      const rawExpectedSymbols = scenario.expectedSymbols;
+      let expectedSymbolsValid = Array.isArray(rawExpectedSymbols) && rawExpectedSymbols.length > 0;
+      for (const value of Array.isArray(rawExpectedSymbols) ? rawExpectedSymbols : []) {
         const symbol = value as { name?: unknown; kind?: unknown; start?: { line?: unknown; column?: unknown }; end?: { line?: unknown; column?: unknown } };
-        if (typeof symbol.name === 'string' && typeof symbol.kind === 'string'
-          && Number.isInteger(symbol.start?.line) && Number.isInteger(symbol.start?.column)
-          && Number.isInteger(symbol.end?.line) && Number.isInteger(symbol.end?.column)) {
-          expectedSymbols.set(symbol.name, {
-            kind: symbol.kind,
+        const validExpectation = typeof symbol.name === 'string' && symbol.name.trim().length > 0
+          && typeof symbol.kind === 'string'
+          && Number.isInteger(symbol.start?.line) && Number(symbol.start?.line) >= 1
+          && Number.isInteger(symbol.start?.column) && Number(symbol.start?.column) >= 0
+          && Number.isInteger(symbol.end?.line) && Number(symbol.end?.line) >= 1
+          && Number.isInteger(symbol.end?.column) && Number(symbol.end?.column) >= 0;
+        const symbolName = typeof symbol.name === 'string' ? symbol.name : '';
+        const symbolKind = typeof symbol.kind === 'string' ? symbol.kind : '';
+        if (validExpectation && !expectedSymbols.has(symbolName)) {
+          expectedSymbols.set(symbolName, {
+            kind: symbolKind,
             start: { line: Number(symbol.start?.line), column: Number(symbol.start?.column) },
             end: { line: Number(symbol.end?.line), column: Number(symbol.end?.column) },
           });
+        } else {
+          expectedSymbolsValid = false;
         }
       }
       const samePosition = (left: unknown, right: { line: number; column: number }): boolean => {
@@ -1413,7 +1423,8 @@ export class SubprocessMcpAdapter {
       const duplicateNames = observedNames.filter((name, index) => name && observedNames.indexOf(name) !== index);
       const missingNames = [...expectedSymbols.keys()].filter((name) => !uniqueNames.has(name));
       const unexpectedNames = [...uniqueNames].filter((name) => name && !expectedSymbols.has(name));
-      const rangesVerified = symbols.length === expectedSymbols.size
+      const rangesVerified = expectedSymbolsValid
+        && symbols.length === expectedSymbols.size
         && uniqueNames.size === expectedSymbols.size
         && duplicateNames.length === 0
         && missingNames.length === 0

@@ -17,6 +17,10 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
     if (skipped || !tokens) return 'N/A';
     return tokens.toLocaleString();
   };
+  const accuracyDisplay = (skipped: boolean | undefined, accuracy: number | null): string => {
+    if (skipped || accuracy === null) return 'N/A';
+    return `${accuracy}%`;
+  };
 
   const lines: string[] = [
     '# Arbiter Multi-Agent Benchmark Report',
@@ -41,7 +45,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
       const cv = r.stats ? r.stats.cvDuration.toFixed(2) : '0.00';
 
       lines.push(
-        `| **${r.scenarioId}** | ${r.title} | ${median} | ${p95} | ${stddev} | ${cv} | ${tokensStr} | ${conflictsStr} | ${r.skipped ? 'N/A' : `${r.metrics.accuracyPercent}%`} | ${statusIcon(r.skipped, r.passed)} |`
+        `| **${r.scenarioId}** | ${r.title} | ${median} | ${p95} | ${stddev} | ${cv} | ${tokensStr} | ${conflictsStr} | ${accuracyDisplay(r.skipped, r.metrics.accuracyPercent)} | ${statusIcon(r.skipped, r.passed)} |`
       );
     }
   } else {
@@ -54,7 +58,7 @@ export function formatMarkdownReport(summary: BenchmarkSummary): string {
         ? `${r.metrics.conflictsDetected} (${r.metrics.conflictsResolved} resolved)`
         : '0';
       lines.push(
-        `| **${r.scenarioId}** | ${r.title} | ${r.metrics.durationMs.toFixed(1)} | ${tokensStr} | ${conflictsStr} | ${r.skipped ? 'N/A' : `${r.metrics.accuracyPercent}%`} | ${statusIcon(r.skipped, r.passed)} |`
+        `| **${r.scenarioId}** | ${r.title} | ${r.metrics.durationMs.toFixed(1)} | ${tokensStr} | ${conflictsStr} | ${accuracyDisplay(r.skipped, r.metrics.accuracyPercent)} | ${statusIcon(r.skipped, r.passed)} |`
       );
     }
   }

@@ -90,7 +90,7 @@ export function createTempGitRepo(targetSourceDir?: string): { repoPath: string;
       cleanupErrors.push(`repository removal: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (cleanupErrors.length > 0) {
-      throw new Error(`Temporary repository cleanup failed: ${cleanupErrors.join('; ')}`);
+      process.emitWarning(`Temporary repository cleanup failed: ${cleanupErrors.join('; ')}`, 'BenchmarkCleanupWarning');
     }
   };
 

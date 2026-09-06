@@ -414,6 +414,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     let failureAttempts = 0;
     let claimSent = false;
     let completionSent = false;
+    let failureTransitionRequestId = 3;
     let settled = false;
     let responseChain = Promise.resolve();
     const ledger = new TokenLedger();
@@ -423,6 +424,34 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       const jsonStr = JSON.stringify(msg);
       ledger.add(jsonStr, 'request');
       serverProcess.stdin.write(jsonStr + '\n');
+    };
+
+    const sendFailureTransition = () => {
+      if (settled || !claimedTaskId) return;
+      failureAttempts += 1;
+      failureTransitionRequestId = failureAttempts === 1 ? 3 : 3 + failureAttempts;
+      send({
+        jsonrpc: '2.0',
+        id: failureTransitionRequestId,
+        method: 'tools/call',
+        params: {
+          name: 'arbiter_fail_task',
+          arguments: {
+            task_id: claimedTaskId,
+            worker_id: config.workerId,
+            error: config.failError || 'Deliberate worker task failure',
+          },
+        },
+      });
+    };
+
+    const retryFailureTransition = async (message: string) => {
+      if (failureAttempts >= 8) {
+        fail(message);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 80 * Math.pow(1.5, Math.max(0, failureAttempts - 1))));
+      sendFailureTransition();
     };
 
     const cleanup = () => {
@@ -492,20 +521,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         if (!addResult.ok) throw new Error(`git add failed: ${addResult.stderr}`);
         const commitResult = runCommandWithLedger(ledger, 'git', ['commit', '--allow-empty', '-m', commitMessage], worktreePath);
         if (!commitResult.ok) throw new Error(`git commit failed: ${commitResult.stderr}`);
-        failureAttempts = 1;
-        send({
-          jsonrpc: '2.0',
-          id: 3,
-          method: 'tools/call',
-          params: {
-            name: 'arbiter_fail_task',
-            arguments: {
-              task_id: claimedTaskId,
-              worker_id: config.workerId,
-              error: config.failError || 'Deliberate worker task failure',
-            },
-          },
-        });
+        sendFailureTransition();
         return;
       }
 
@@ -539,6 +555,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       }
 
       if (resp.error) {
+        if (config.shouldFail && resp.id === failureTransitionRequestId) {
+          await retryFailureTransition(`MCP failure transition error for ${claimedTaskId || 'unknown task'}: ${JSON.stringify(resp.error)}`);
+          return;
+        }
         fail(`MCP error${resp.id === undefined ? '' : ` for request ${String(resp.id)}`}: ${JSON.stringify(resp.error)}`);
         return;
       }
@@ -595,25 +615,30 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         return;
       }
 
-      if (resp.id === 3) {
-        if (completionSent && config.shouldFail === false) {
-          completionSent = false;
-        }
+      if (resp.id === failureTransitionRequestId) {
         const result = resp.result as { content?: Array<{ text?: string }> } | undefined;
         const text = result?.content?.[0]?.text;
         if (!text) {
-          fail('MCP task transition returned no result payload');
+          if (config.shouldFail) {
+            await retryFailureTransition('MCP task transition returned no result payload');
+          } else {
+            fail('MCP task transition returned no result payload');
+          }
           return;
         }
         let resultData: { ok?: boolean };
         try {
           resultData = JSON.parse(text) as { ok?: boolean };
         } catch (err: unknown) {
-          fail(`Invalid MCP task transition payload: ${err instanceof Error ? err.message : String(err)}`);
+          const message = `Invalid MCP task transition payload: ${err instanceof Error ? err.message : String(err)}`;
+          if (config.shouldFail) await retryFailureTransition(message);
+          else fail(message);
           return;
         }
         if (resultData.ok !== true) {
-          fail(`MCP task transition failed for ${claimedTaskId || 'unknown task'}`);
+          const message = `MCP task transition failed for ${claimedTaskId || 'unknown task'}`;
+          if (config.shouldFail) await retryFailureTransition(message);
+          else fail(message);
           return;
         }
         if (!config.shouldFail && worktreePath) {
