@@ -1386,7 +1386,7 @@ export class SubprocessMcpAdapter {
       });
 
       const result = workerOutput.discoveryResult;
-      const symbols = Array.isArray(result?.symbols) ? result.symbols as Array<Record<string, any>> : [];
+      const symbols = Array.isArray(result?.symbols) ? result.symbols as Array<Record<string, unknown>> : [];
       const validPosition = (position: unknown): boolean => {
         const value = position as Record<string, unknown> | null;
         return Boolean(value && Number.isInteger(value.line) && Number.isInteger(value.column) && Number(value.line) >= 1 && Number(value.column) >= 0);

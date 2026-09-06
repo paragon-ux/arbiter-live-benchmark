@@ -177,6 +177,17 @@ function resolveWorktreePath(repoPath: string, candidate: unknown): string {
   return resolved;
 }
 
+function resolveAssignedWorktreePath(repoPath: string, taskId: string, candidate: unknown): string {
+  const resolved = resolveWorktreePath(repoPath, candidate);
+  const rawTaskId = taskId.startsWith('task-') ? taskId.slice(5) : taskId;
+  const safeTaskId = rawTaskId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const expected = canonicalPath(path.join(repoPath, '.arbiter', 'worktrees', `task-${safeTaskId}`));
+  if (!isWithin(expected, canonicalPath(resolved), true) || !isWithin(canonicalPath(resolved), expected, true)) {
+    throw new Error('Arbiter returned a worktree that is not assigned to the claimed task');
+  }
+  return resolved;
+}
+
 function resolveTestTarget(worktreePath: string, testFile: string): string {
   const normalized = testFile.replace(/\\/g, '/');
   if (!normalized) throw new Error('testFile must not be empty');
@@ -193,19 +204,43 @@ function resolveTestTarget(worktreePath: string, testFile: string): string {
   return path.relative(worktreePath, target).replace(/\\/g, '/');
 }
 
+function openContainedFile(worktreePath: string, targetFile: string, flags: number): number {
+  const root = canonicalPath(worktreePath);
+  const parent = canonicalPath(path.dirname(targetFile));
+  if (!isWithin(root, parent, true)) throw new Error('file operation path resolves outside the assigned worktree');
+  const noFollow = fs.constants.O_NOFOLLOW ?? 0;
+  const descriptor = fs.openSync(targetFile, flags | noFollow, 0o600);
+  try {
+    const actual = canonicalPath(targetFile);
+    if (!isWithin(root, actual) || !fs.fstatSync(descriptor).isFile()) {
+      throw new Error('file operation path resolves outside the assigned worktree');
+    }
+    return descriptor;
+  } catch (err) {
+    fs.closeSync(descriptor);
+    throw err;
+  }
+}
+
 function applyFileOperations(worktreePath: string, files: WorkerFileOperation[] | undefined, ledger: TokenLedger): void {
   for (const op of files || []) {
     const targetFile = resolveContainedPath(worktreePath, op.path, 'file operation path');
     fs.mkdirSync(path.dirname(targetFile), { recursive: true });
     if (op.action === 'delete') {
-      if (fs.existsSync(targetFile)) fs.unlinkSync(targetFile);
+      if (fs.existsSync(targetFile)) {
+        const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_RDONLY);
+        fs.closeSync(descriptor);
+        fs.unlinkSync(targetFile);
+      }
     } else if (op.action === 'append' || op.append !== undefined) {
       const content = op.append || '';
-      fs.appendFileSync(targetFile, content, 'utf8');
+      const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
+      try { fs.writeFileSync(descriptor, content, 'utf8'); } finally { fs.closeSync(descriptor); }
       ledger.add(content, 'content');
     } else {
       const content = op.content || '';
-      fs.writeFileSync(targetFile, content, 'utf8');
+      const descriptor = openContainedFile(worktreePath, targetFile, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC);
+      try { fs.writeFileSync(descriptor, content, 'utf8'); } finally { fs.closeSync(descriptor); }
       ledger.add(content, 'content');
     }
   }
@@ -413,8 +448,9 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     let completionAttempts = 0;
     let failureAttempts = 0;
     let claimSent = false;
-    let completionSent = false;
     let failureTransitionRequestId = 3;
+    let failureTransitionReason = '';
+    let failureTransitionActive = false;
     let settled = false;
     let responseChain = Promise.resolve();
     const ledger = new TokenLedger();
@@ -426,8 +462,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       serverProcess.stdin.write(jsonStr + '\n');
     };
 
-    const sendFailureTransition = () => {
+    const sendFailureTransition = (reason = failureTransitionReason || config.failError || 'Worker task failure') => {
       if (settled || !claimedTaskId) return;
+      failureTransitionActive = true;
+      failureTransitionReason = reason;
       failureAttempts += 1;
       failureTransitionRequestId = failureAttempts === 1 ? 3 : 3 + failureAttempts;
       send({
@@ -439,7 +477,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           arguments: {
             task_id: claimedTaskId,
             worker_id: config.workerId,
-            error: config.failError || 'Deliberate worker task failure',
+            error: failureTransitionReason,
           },
         },
       });
@@ -451,7 +489,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
         return;
       }
       await new Promise((r) => setTimeout(r, 80 * Math.pow(1.5, Math.max(0, failureAttempts - 1))));
-      sendFailureTransition();
+      sendFailureTransition(failureTransitionReason || message);
     };
 
     const cleanup = () => {
@@ -485,12 +523,24 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      if (failureTimeout) clearTimeout(failureTimeout);
       cleanup();
       resolve(result);
     };
 
-    const fail = (message: string) => {
+    let failureTimeout: NodeJS.Timeout | undefined;
+    const finishFailure = (message: string) => {
       finish(output({ error: message, stderr: ledger.stderr || message }));
+    };
+    const fail = (message: string) => {
+      if (claimedTaskId && failureAttempts === 0 && !settled) {
+        sendFailureTransition(message);
+        failureTimeout = setTimeout(() => {
+          if (!settled) finishFailure(message);
+        }, COMMAND_TIMEOUT_MS);
+        return;
+      }
+      finishFailure(message);
     };
 
     const performWork = async (): Promise<void> => {
@@ -499,6 +549,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
       if (config.holdLeaseMs && config.holdLeaseMs > 0) {
         await new Promise((r) => setTimeout(r, config.holdLeaseMs));
+      }
+
+      if (config.discovery) {
+        throw new Error('MCP worker discovery configuration is unsupported; use CLI worker mode');
       }
 
       applyFileOperations(worktreePath, config.files, ledger);
@@ -527,7 +581,6 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
 
       recordWaymarkHop(ledger, worktreePath, waymarkTrajectoryId, config.files);
       completionAttempts = 1;
-      completionSent = true;
       send({
         jsonrpc: '2.0',
         id: 3,
@@ -602,11 +655,16 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           return;
         }
         claimedTaskId = taskId;
-        worktreePath = resolveWorktreePath(config.repoPath, returnedWorktree);
-        waymarkTrajectoryId = typeof parsed.waymark_trajectory_id === 'string'
-          ? parsed.waymark_trajectory_id
-          : typeof parsed.waymarkTrajectoryId === 'string' ? parsed.waymarkTrajectoryId : null;
-        leaseEpoch = Number(parsed.lease_epoch ?? parsed.leaseEpoch ?? 1);
+        worktreePath = resolveAssignedWorktreePath(config.repoPath, taskId, returnedWorktree);
+        const snakeTrajectoryId = parsed.waymark_trajectory_id;
+        const camelTrajectoryId = parsed.waymarkTrajectoryId;
+        if (typeof snakeTrajectoryId === 'string') waymarkTrajectoryId = snakeTrajectoryId;
+        else if (typeof camelTrajectoryId === 'string') waymarkTrajectoryId = camelTrajectoryId;
+        else waymarkTrajectoryId = null;
+        leaseEpoch = Number(parsed.lease_epoch ?? parsed.leaseEpoch);
+        if (!Number.isFinite(leaseEpoch) || !Number.isInteger(leaseEpoch) || leaseEpoch < 1) {
+          throw new Error('MCP claim payload did not contain a valid lease epoch');
+        }
         try {
           await performWork();
         } catch (err: unknown) {
@@ -646,8 +704,8 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
           if (revision.ok) commitSha = revision.stdout.trim();
         }
         finish(output({
-          success: !config.shouldFail,
-          error: config.shouldFail ? config.failError || 'Deliberate worker task failure' : undefined,
+          success: !failureTransitionActive,
+          error: failureTransitionActive ? failureTransitionReason : undefined,
         }));
       }
     };
@@ -741,7 +799,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     const candidateWorktree = parsed?.worktreePath ?? parsed?.worktree_path;
     if (typeof candidateTaskId === 'string' && typeof candidateWorktree === 'string') {
       try {
-        const resolvedWorktree = resolveWorktreePath(config.repoPath, candidateWorktree);
+        const resolvedWorktree = resolveAssignedWorktreePath(config.repoPath, candidateTaskId, candidateWorktree);
         const rawLeaseEpoch = parsed?.leaseEpoch ?? parsed?.lease_epoch;
         const parsedLeaseEpoch = Number(rawLeaseEpoch);
         if (!Number.isInteger(parsedLeaseEpoch)) throw new Error('Arbiter claim returned no valid lease epoch');
@@ -788,9 +846,11 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let typeErrors = 0;
   let unitTestsPassed = 0;
   let unitTestsTotal = 0;
-  const waymarkTrajectoryId = typeof (claimData.waymarkTrajectoryId ?? claimData.waymark_trajectory_id) === 'string'
-    ? String(claimData.waymarkTrajectoryId ?? claimData.waymark_trajectory_id)
-    : undefined;
+  const snakeTrajectoryId = claimData.waymark_trajectory_id;
+  const camelTrajectoryId = claimData.waymarkTrajectoryId;
+  let waymarkTrajectoryId: string | undefined;
+  if (typeof snakeTrajectoryId === 'string') waymarkTrajectoryId = snakeTrajectoryId;
+  else if (typeof camelTrajectoryId === 'string') waymarkTrajectoryId = camelTrajectoryId;
   const leaseEpoch = Number(claimData.leaseEpoch ?? claimData.lease_epoch);
   let discoveryResult: Record<string, unknown> | undefined;
   let discoveryNoWrite: boolean | undefined;
@@ -832,37 +892,43 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   };
 
   if (config.discovery) {
-    const discoveryPath = config.discovery.path.replace(/\\/g, '/');
-    const discoveryFile = resolveContainedPath(worktreePath, discoveryPath, 'discovery path');
-    if (!fs.statSync(discoveryFile).isFile()) {
-      const reason = 'discovery path must reference a regular file';
-      const transition = await transitionFailure(reason);
-      return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
-    }
-    const before = discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
-    const language = typeof config.discovery.language === 'string' && config.discovery.language.trim()
-      ? config.discovery.language.trim()
-      : undefined;
-    const discoveryRes = execArbiter([
-      'discover-symbols',
-      '--task', taskId,
-      '--worker', config.workerId,
-      '--lease-epoch', String(leaseEpoch),
-      '--path', discoveryPath,
-      ...(language ? ['--language', language] : []),
-    ]);
-    discoveryResult = parseJson(discoveryRes.stdout) || {
-      ok: false,
-      code: 'ERR_DISCOVERY_RESPONSE',
-      message: discoveryRes.stderr || 'Invalid discovery response',
-    };
     try {
-      discoveryNoWrite = before === discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
-    } catch {
-      discoveryNoWrite = false;
-    }
-    if (!discoveryRes.ok || discoveryResult.ok !== true) {
-      const reason = String(discoveryResult.message || 'Discovery failed');
+      const discoveryPath = config.discovery.path.replace(/\\/g, '/');
+      const discoveryFile = resolveContainedPath(worktreePath, discoveryPath, 'discovery path');
+      if (!fs.statSync(discoveryFile).isFile()) {
+        const reason = 'discovery path must reference a regular file';
+        const transition = await transitionFailure(reason);
+        return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+      }
+      const before = discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
+      const language = typeof config.discovery.language === 'string' && config.discovery.language.trim()
+        ? config.discovery.language.trim()
+        : undefined;
+      const discoveryRes = execArbiter([
+        'discover-symbols',
+        '--task', taskId,
+        '--worker', config.workerId,
+        '--lease-epoch', String(leaseEpoch),
+        '--path', discoveryPath,
+        ...(language ? ['--language', language] : []),
+      ]);
+      discoveryResult = parseJson(discoveryRes.stdout) || {
+        ok: false,
+        code: 'ERR_DISCOVERY_RESPONSE',
+        message: discoveryRes.stderr || 'Invalid discovery response',
+      };
+      try {
+        discoveryNoWrite = before === discoveryStateSnapshot(config.repoPath, worktreePath, discoveryPath);
+      } catch {
+        discoveryNoWrite = false;
+      }
+      if (!discoveryRes.ok || discoveryResult.ok !== true) {
+        const reason = String(discoveryResult.message || 'Discovery failed');
+        const transition = await transitionFailure(reason);
+        return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
+      }
+    } catch (err: unknown) {
+      const reason = err instanceof Error ? err.message : String(err);
       const transition = await transitionFailure(reason);
       return output({ error: transition.ok ? reason : `${reason}; ${transition.error}` });
     }
@@ -907,7 +973,6 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     if (!addResult.ok) completionError = `git add failed: ${addResult.stderr}`;
     else if (!commitResult.ok) completionError = `git commit failed: ${commitResult.stderr}`;
     const transition = await transitionFailure(config.failError || completionError || 'Deliberate worker task failure');
-    completionSuccess = transition.ok;
     if (!transition.ok) completionError = completionError || transition.error || 'CLI failure transition failed';
     return output({
       success: false,
