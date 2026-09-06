@@ -1,6 +1,6 @@
 {
   "name": "arbiter-live-benchmark",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "description": "Live empirical multi-agent orchestration benchmark validating Arbiter worktree coordination, Waymark continuity, and fail-closed merge safety.",
   "type": "module",
@@ -39,7 +39,7 @@
     "public-check": "node scripts/public-check.mjs",
     "calibrate": "node scripts/calibrate-tokens.mjs",
     "benchmark": "npm run build && node dist/src/cli/index.js --all",
-    "compare": "node scripts/compare-baseline.mjs results/latest.json BASELINE_v2.1.0.json",
+    "compare": "node scripts/compare-baseline.mjs results/latest.json",
     "check:docs": "node scripts/check-doc-consistency.mjs && node scripts/check-doc-consistency.mjs --hypotheses",
     "check:table": "node scripts/generate-readme-table.mjs --check",
     "check:claims": "node scripts/claims-check.mjs",
@@ -47,7 +47,8 @@
     "check:checklist": "node scripts/check-checklist.mjs",
     "check:version": "node scripts/bump-version.mjs --check",
     "bump:version": "node scripts/bump-version.mjs",
-    "verify": "npm run build && node --test --test-concurrency=1 \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run check:docs && npm run check:table && npm run check:claims && npm run check:hygiene && npm run check:checklist && npm run check:version"
+    "verify": "npm run build && node --test --test-concurrency=1 \"dist/test/**/*.test.js\" && node scripts/public-check.mjs && npm run check:docs && npm run check:table && npm run check:claims && npm run check:hygiene && npm run check:checklist && npm run check:version",
+    "verify:release": "npm run verify && npm run benchmark && npm run compare"
   },
   "dependencies": {
     "arbiter": "file:../Arbiter",

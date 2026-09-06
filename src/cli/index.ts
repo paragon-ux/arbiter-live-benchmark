@@ -10,6 +10,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../../..');
 
+function defaultBaselinePath(): string {
+  const packageData = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8')) as { version: string };
+  const versions = [packageData.version, '2.1.0', '2.0.0', '1.2.0', '1.1.0', '1.0.0'];
+  for (const version of versions) {
+    const candidate = path.join(rootDir, `BASELINE_v${version}.json`);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.join(rootDir, `BASELINE_v${packageData.version}.json`);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let scenarioId: string | undefined;
@@ -39,7 +49,7 @@ async function main(): Promise<void> {
     } else if (arg === '--verbose' || arg === '-v') {
       verbose = true;
     } else if (arg === '--compare') {
-      compareBaseline = (args[i + 1] && !args[i + 1].startsWith('-')) ? args[++i] : path.join(rootDir, 'BASELINE_v1.2.0.json');
+      compareBaseline = (args[i + 1] && !args[i + 1].startsWith('-')) ? args[++i] : defaultBaselinePath();
     } else if (arg === '--json') {
       emitJson = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -53,7 +63,7 @@ Options:
                      'naive_mutex', 'process_pool', or 'docker'
   --trials <N>       Number of iterations to run for statistical aggregation (default: 1)
   --verbose, -v      Output timestamped execution trace logs
-  --compare [path]   Compare execution results against baseline JSON (default: BASELINE_v1.2.0.json)
+  --compare [path]   Compare execution results against baseline JSON (default: current versioned baseline)
   --json             Output results in raw JSON format
   --help, -h         Show help text
 `);

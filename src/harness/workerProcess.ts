@@ -10,6 +10,11 @@ const require = createRequire(import.meta.url);
 const rootDir = path.resolve(__dirname, '../../..');
 const rootNodeModules = path.resolve(rootDir, 'node_modules');
 const rootTypesDir = path.resolve(rootNodeModules, '@types');
+const waymarkCliScript = [
+  process.env.WAYMARK_CLI_PATH || '',
+  path.resolve(rootDir, '../Deepseek-Project/Waymark/dist/src/cli.js'),
+  path.resolve(rootDir, '../Waymark/dist/src/cli.js'),
+].find((candidate) => candidate && fs.existsSync(candidate)) || '';
 
 const tscBin = (() => {
   try {
@@ -33,6 +38,34 @@ function runTsc(worktreePath: string, extraArgs: string[] = []): void {
       NODE_PATH: fs.existsSync(rootNodeModules) ? rootNodeModules : process.env.NODE_PATH,
     },
   });
+}
+
+function recordWaymarkHop(worktreePath: string, trajectoryId: string | null | undefined, files: WorkerFileOperation[] | undefined): number {
+  if (!waymarkCliScript || !trajectoryId) return 0;
+
+  const hopPath = files?.map((file) => file.path).find((file) => fs.existsSync(path.resolve(worktreePath, file))) || 'README.md';
+  if (!fs.existsSync(path.resolve(worktreePath, hopPath))) return 0;
+
+  const output = execFileSync(process.execPath, [
+    waymarkCliScript,
+    'note',
+    trajectoryId,
+    '--path',
+    hopPath.replace(/\\/g, '/'),
+    '--label',
+    'worker-complete',
+    '--start',
+    '1',
+    '--end',
+    '1',
+    '--inference',
+    'Recorded worker changes before Arbiter completion.',
+  ], {
+    cwd: worktreePath,
+    windowsHide: true,
+    encoding: 'utf8',
+  });
+  return countTokens(output);
 }
 
 export interface WorkerFileOperation {
@@ -116,6 +149,8 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
     let buffer = '';
     let claimedTaskId: string | null = null;
     let worktreePath: string | null = null;
+    let waymarkTrajectoryId: string | null = null;
+    let commitSha: string | undefined;
     let leaseEpoch = 1;
     let tokensMeasured = 0;
     let typeErrors = 0;
@@ -192,6 +227,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
             const parsed = JSON.parse(text);
             claimedTaskId = parsed.task_id || parsed.taskId || parsed.task?.id;
             worktreePath = parsed.worktree_path || parsed.worktreePath;
+            waymarkTrajectoryId = parsed.waymark_trajectory_id || parsed.waymarkTrajectoryId || null;
             leaseEpoch = parsed.lease_epoch ?? parsed.leaseEpoch ?? 1;
 
             if (!claimedTaskId || !worktreePath) {
@@ -214,8 +250,6 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
             }
 
             // Perform real work inside the assigned worktree
-            let commitSha: string | undefined;
-
             try {
               if (config.crashWithSignal) {
                 // Abrupt worker termination test for watchdog recovery
@@ -296,13 +330,10 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
                 }
               }
 
-              // Commit changes in worktree
-              const commitMsg = config.commitMessage || `Completed work for ${claimedTaskId}`;
-              execFileSync('git', ['add', '.'], { cwd: worktreePath, windowsHide: true });
-              execFileSync('git', ['commit', '--allow-empty', '-m', commitMsg], { cwd: worktreePath, windowsHide: true });
-              commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreePath, windowsHide: true, encoding: 'utf8' }).trim();
-
               if (config.shouldFail) {
+                const commitMsg = config.commitMessage || `Failed work for ${claimedTaskId}`;
+                execFileSync('git', ['add', '.'], { cwd: worktreePath, windowsHide: true });
+                execFileSync('git', ['commit', '--allow-empty', '-m', commitMsg], { cwd: worktreePath, windowsHide: true });
                 send({
                   jsonrpc: '2.0',
                   id: 3,
@@ -317,6 +348,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
                   },
                 });
               } else {
+                tokensMeasured += recordWaymarkHop(worktreePath, waymarkTrajectoryId, config.files);
                 // Complete task via MCP
                 send({
                   jsonrpc: '2.0',
@@ -327,7 +359,7 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
                     arguments: {
                       task_id: claimedTaskId,
                       worker_id: config.workerId,
-                      answer: `Task completed cleanly by PID ${process.pid}. Commit: ${commitSha}`,
+                      answer: `Task completed cleanly by PID ${process.pid}.`,
                       lease_epoch: leaseEpoch,
                     },
                   },
@@ -356,18 +388,29 @@ async function runMcpWorker(config: WorkerTaskConfig, arbiterMcpScript: string):
             // Completed or Failed confirmation
             clearTimeout(timeout);
             cleanup();
+            let resultData: { ok?: boolean } = {};
+            try {
+              const text = (resp.result as { content?: Array<{ text?: string }> })?.content?.[0]?.text;
+              if (text) resultData = JSON.parse(text) as { ok?: boolean };
+            } catch {}
+            if (!config.shouldFail && worktreePath && resultData.ok === true) {
+              try {
+                commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreePath, windowsHide: true, encoding: 'utf8' }).trim();
+              } catch {}
+            }
             resolve({
               pid: process.pid,
               workerId: config.workerId,
               taskId: claimedTaskId,
               worktreePath,
-              success: !config.shouldFail,
+              success: resultData.ok === true && !config.shouldFail,
               typeErrors,
               unitTestsPassed,
               unitTestsTotal,
               stdout: JSON.stringify(resp.result),
               stderr: '',
               tokensMeasured,
+              commitSha,
             });
             return;
           }
@@ -426,7 +469,17 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
 
   // 1. Claim task with retry backoff for concurrent workers
   let claimRes = { ok: false, stdout: '', stderr: '' };
-  let claimData: { ok?: boolean; taskId?: string; task_id?: string; task?: { id?: string }; worktreePath?: string; worktree_path?: string; leaseEpoch?: number } = {};
+  let claimData: {
+    ok?: boolean;
+    taskId?: string;
+    task_id?: string;
+    task?: { id?: string };
+    worktreePath?: string;
+    worktree_path?: string;
+    waymarkTrajectoryId?: string;
+    waymark_trajectory_id?: string;
+    leaseEpoch?: number;
+  } = {};
   let taskId: string | undefined;
   let worktreePath: string | undefined;
 
@@ -472,6 +525,7 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
   let typeErrors = 0;
   let unitTestsPassed = 0;
   let unitTestsTotal = 0;
+  const waymarkTrajectoryId = claimData.waymarkTrajectoryId || claimData.waymark_trajectory_id;
 
   if (config.files) {
     for (const op of config.files) {
@@ -535,22 +589,22 @@ async function runCliWorker(config: WorkerTaskConfig, arbiterCliScript: string):
     }
   }
 
-  // Commit work
-  const commitMsg = config.commitMessage || `Worker ${config.workerId} commit for ${taskId}`;
-  execFileSync('git', ['add', '.'], { cwd: worktreePath, windowsHide: true });
-  execFileSync('git', ['commit', '--allow-empty', '-m', commitMsg], { cwd: worktreePath, windowsHide: true });
-  const commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreePath, windowsHide: true, encoding: 'utf8' }).trim();
-
   // Complete or fail task with retry
   let completionSuccess = false;
+  let commitSha: string | undefined;
   if (config.shouldFail) {
+    const commitMsg = config.commitMessage || `Failed work for ${taskId}`;
+    execFileSync('git', ['add', '.'], { cwd: worktreePath, windowsHide: true });
+    execFileSync('git', ['commit', '--allow-empty', '-m', commitMsg], { cwd: worktreePath, windowsHide: true });
     execArbiter(['fail', '--task', taskId, '--worker', config.workerId, '--error', config.failError || 'Failed']);
     completionSuccess = true;
   } else {
+    tokensMeasured += recordWaymarkHop(worktreePath, waymarkTrajectoryId, config.files);
     for (let attempt = 0; attempt < 8; attempt++) {
-      const compRes = execArbiter(['complete', '--task', taskId, '--worker', config.workerId, '--answer', `Completed commit ${commitSha}`]);
+      const compRes = execArbiter(['complete', '--task', taskId, '--worker', config.workerId, '--answer', `Completed work by ${config.workerId}`]);
       if (compRes.ok) {
         completionSuccess = true;
+        commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreePath, windowsHide: true, encoding: 'utf8' }).trim();
         break;
       }
       await new Promise((r) => setTimeout(r, 80 * Math.pow(1.5, attempt)));

@@ -4,7 +4,7 @@
  * Automated Results Table Generator
  * 
  * Generates and validates the markdown results table in README.md
- * from BASELINE_v2.1.0.json to prevent documentation drift.
+ * from the current versioned baseline to prevent documentation drift.
  * 
  * Usage:
  *   node scripts/generate-readme-table.mjs --check
@@ -12,14 +12,16 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveBaselinePath } from './baseline-path.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
-const baselinePath = resolve(rootDir, 'BASELINE_v2.1.0.json');
+const baselinePath = resolveBaselinePath(rootDir);
+const baselineFile = basename(baselinePath);
 const readmePath = resolve(rootDir, 'README.md');
 
 const SCENARIO_META = {
@@ -124,11 +126,11 @@ function main() {
 
   if (isCheck) {
     if (existingTable.replace(/\r\n/g, '\n') !== cleanGenerated.replace(/\r\n/g, '\n')) {
-      console.error('Drift detected between README.md and BASELINE_v2.1.0.json!');
+      console.error(`Drift detected between README.md and ${baselineFile}!`);
       console.error('Run node scripts/generate-readme-table.mjs --write to update.');
       process.exit(1);
     }
-    console.log('README results table matches BASELINE_v2.1.0.json (0 drift).');
+    console.log(`README results table matches ${baselineFile} (0 drift).`);
     process.exit(0);
   }
 
@@ -139,7 +141,7 @@ function main() {
     readmeContent.slice(endIdx);
 
   writeFileSync(readmePath, updatedReadme, 'utf8');
-  console.log('Updated README.md results table from BASELINE_v2.1.0.json.');
+  console.log(`Updated README.md results table from ${baselineFile}.`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

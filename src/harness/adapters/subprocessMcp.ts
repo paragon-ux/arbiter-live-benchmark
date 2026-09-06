@@ -1142,6 +1142,8 @@ export class SubprocessMcpAdapter {
       const conflictsQuarantined = confResults.filter((r) => !r.ok && r.conflict === true).length;
       const confOk = conflictsQuarantined === 3;
 
+      for (let i = 0; i < conflictsQuarantined; i++) collector.recordConflict(false);
+
       mergeDb.close();
 
       let mainBranchValid = false;

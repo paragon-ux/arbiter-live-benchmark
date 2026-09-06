@@ -3,14 +3,17 @@
 /**
  * Automated Baseline Regression Comparator
  * 
- * Evaluates current benchmark execution results against a locked baseline (e.g. BASELINE_v1.1.0.json)
+ * Evaluates current benchmark execution results against the current versioned baseline.
  * using platform-stratified tolerances defined in REGRESSION_TOLERANCES.json.
  * 
  * Invariants: Zero external npm dependencies; pure Node 22 native modules.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { resolveBaselinePath } from './baseline-path.mjs';
+
+const rootDir = resolve(import.meta.dirname, '..');
 
 function getPlatformConfig(tolerancesData, platform = process.platform) {
   const tolerances = tolerancesData.tolerances || tolerancesData;
@@ -163,12 +166,10 @@ export function formatComparisonReport(result) {
 
 // CLI Execution
 if (process.argv[1] && process.argv[1].endsWith('compare-baseline.mjs')) {
-  const currentPath = resolve(process.argv[2] || 'results/latest.json');
-  const defaultBaseline = existsSync(resolve('BASELINE_v1.2.0.json'))
-    ? 'BASELINE_v1.2.0.json'
-    : (existsSync(resolve('BASELINE_v1.1.0.json')) ? 'BASELINE_v1.1.0.json' : 'BASELINE_v1.0.0.json');
+  const currentPath = resolve(process.argv[2] || resolve(rootDir, 'results/latest.json'));
+  const defaultBaseline = resolveBaselinePath(rootDir);
   const baselinePath = resolve(process.argv[3] || defaultBaseline);
-  const tolerancesPath = resolve(process.argv[4] || 'REGRESSION_TOLERANCES.json');
+  const tolerancesPath = resolve(process.argv[4] || resolve(rootDir, 'REGRESSION_TOLERANCES.json'));
 
   try {
     const currentData = JSON.parse(readFileSync(currentPath, 'utf8'));

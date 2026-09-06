@@ -11,7 +11,7 @@
  * 2. src/harness/adapters/subprocessMcp.ts
  * 3. BENCHMARK_AUTHORING.md
  * 4. README.md
- * 5. BASELINE_v2.1.0.json
+ * 5. The current versioned baseline JSON
  * 
  * Modes:
  *   node scripts/check-doc-consistency.mjs               -> Scenario cross-source parity
@@ -19,9 +19,12 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
+import { resolveBaselinePath } from './baseline-path.mjs';
 
 const rootDir = resolve(import.meta.dirname, '..');
+const baselinePath = resolveBaselinePath(rootDir);
+const baselineFile = basename(baselinePath);
 
 function checkHypotheses() {
   const authoringPath = resolve(rootDir, 'docs', 'BENCHMARK_AUTHORING.md');
@@ -63,7 +66,7 @@ function checkScenarios() {
     'src/harness/adapters/subprocessMcp.ts',
     'docs/BENCHMARK_AUTHORING.md',
     'README.md',
-    'BASELINE_v2.1.0.json'
+    baselineFile
   ];
 
   // 1. scenarios/*.json
@@ -80,8 +83,8 @@ function checkScenarios() {
     errors.push(`Expected 22 scenario JSON files, found ${scenarioTitles.size}`);
   }
 
-  // 2. BASELINE_v2.1.0.json
-  const baseline = JSON.parse(readFileSync(resolve(rootDir, 'BASELINE_v2.1.0.json'), 'utf8'));
+  // 2. Current versioned baseline
+  const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
   const baselineResults = baseline.results || baseline.scenarios || [];
   const baselineTitles = new Map();
   for (const item of baselineResults) {
@@ -91,9 +94,9 @@ function checkScenarios() {
   for (const [id, title] of scenarioTitles) {
     const bTitle = baselineTitles.get(id);
     if (!bTitle) {
-      errors.push(`Scenario ${id} missing from BASELINE_v2.1.0.json`);
+      errors.push(`Scenario ${id} missing from ${baselineFile}`);
     } else if (bTitle !== title) {
-      errors.push(`Title mismatch for ${id} in BASELINE_v2.1.0.json: "${bTitle}" vs "${title}"`);
+      errors.push(`Title mismatch for ${id} in ${baselineFile}: "${bTitle}" vs "${title}"`);
     }
   }
 

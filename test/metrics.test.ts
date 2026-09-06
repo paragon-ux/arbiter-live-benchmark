@@ -58,7 +58,7 @@ describe('MetricsCollector Suite', () => {
         durationMs: 120.5,
         tokensTotal: 3600,
         conflictsDetected: 3,
-        conflictsResolved: 3,
+        conflictsResolved: 0,
         mainBranchValid: true,
         accuracyPercent: 98,
         details: {
@@ -75,4 +75,3 @@ describe('MetricsCollector Suite', () => {
     assert.equal(sampleNWayResult.metrics.details.mainBranchIntact, true);
   });
 });
-

@@ -28,6 +28,27 @@ export const LIVING_VERSION_TARGETS = [
     extract: (content) => content.match(/"version":\s*"([^"]+)"/)?.[1],
   },
   {
+    name: 'NPM Lockfile Header',
+    file: 'package-lock.json',
+    regex: /^(\s*"version":\s*)"[^"]+"/m,
+    format: (v) => `$1"${v}"`,
+    extract: (content) => content.match(/^\s*"version":\s*"([^"]+)"/m)?.[1],
+  },
+  {
+    name: 'NPM Lockfile Root Package',
+    file: 'package-lock.json',
+    regex: /("":\s*\{\s*"name":\s*"arbiter-live-benchmark",\s*"version":\s*)"[^"]+"/,
+    format: (v) => `$1"${v}"`,
+    extract: (content) => content.match(/"":\s*\{\s*"name":\s*"arbiter-live-benchmark",\s*"version":\s*"([^"]+)"/)?.[1],
+  },
+  {
+    name: 'Arbiter Sibling Lockfile Package',
+    file: 'package-lock.json',
+    regex: /("\.\.\/Arbiter":\s*\{\s*"name":\s*"arbiter",\s*"version":\s*)"[^"]+"/,
+    format: (v) => `$1"${v}"`,
+    extract: (content) => content.match(/"\.\.\/Arbiter":\s*\{\s*"name":\s*"arbiter",\s*"version":\s*"([^"]+)"/)?.[1],
+  },
+  {
     name: 'README Version Badge',
     file: 'README.md',
     regex: /https:\/\/img\.shields\.io\/badge\/version-[0-9.]+-blue\.svg/,

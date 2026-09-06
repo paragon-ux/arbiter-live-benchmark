@@ -173,7 +173,20 @@ describe('Live Subprocess Worker Suite', () => {
     assert.ok(res.metrics.accuracyPercent > 0, 'Accuracy must be calculated from real test results');
     assert.equal(res.metrics.details?.typeErrors, 0);
   });
-});
 
+  it('reports Scenario 019 quarantines in both metric layers', async () => {
+    const res = await adapter.execute({
+      id: '019-n-way-merge-conflicts',
+      title: 'N-Way Merge Conflicts',
+      description: 'Verify quarantined conflict metrics',
+      targetRepo: 'targets/microservice-auth',
+      mode: 'n_way_merge_conflicts',
+    });
+
+    assert.ok(res.passed);
+    assert.equal(res.metrics.conflictsDetected, res.metrics.details?.conflictsQuarantined);
+    assert.equal(res.metrics.conflictsResolved, 0);
+  });
+});
 
 
