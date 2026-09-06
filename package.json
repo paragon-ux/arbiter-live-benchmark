@@ -1,6 +1,6 @@
 {
   "name": "arbiter-live-benchmark",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": true,
   "description": "Live empirical multi-agent orchestration benchmark validating Arbiter worktree coordination, Waymark continuity, and fail-closed merge safety.",
   "type": "module",

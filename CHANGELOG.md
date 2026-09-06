@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.2] — 2026-09-06
+
+### Fixed
+- Treat an unavailable Docker daemon as an explicit capability skip in the default 23-scenario run, without synthetic timing; direct Docker-tier execution remains fail-closed.
+- Canonicalized temporary Git worktree paths before cleanup and pinned CI to the matching Arbiter 2.3.2 revision.
+- Made the native Node test glob portable across Windows, macOS, and Linux release gates.
+
 ## [2.3.1] — 2026-09-06
 
 ### Fixed

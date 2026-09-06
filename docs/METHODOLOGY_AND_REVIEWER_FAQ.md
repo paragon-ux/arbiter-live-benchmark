@@ -1,6 +1,6 @@
 # Scientific Methodology & Independent Reviewer FAQ: Multi-Agent Orchestration, Subprocess Isolation, and Cloud API Boundaries
 
-**Version:** 2.3.1
+**Version:** 2.3.2
 **Target Repository:** `arbiter-live-benchmark`  
 **Audience:** Independent reviewers, distributed systems researchers, benchmark auditors, and agent harness developers.
 
@@ -364,7 +364,7 @@ node dist/src/cli/index.js --scenario 008-agent-semantic-correctness --mode agy
 ```
 In this mode, Arbiter provisions the worktree, acquires the lease, launches the live LLM agent, monitors the agent's PID, and merges the resulting branch upon test completion.
 
-#### Authoritative Live Verification Receipt (v2.3.1)
+#### Authoritative Live Verification Receipt (v2.3.2)
 The following execution receipt was generated on live hardware executing Google Gemini via `agy`:
 
 | Metric | Measured Live Result | Verification Detail |
